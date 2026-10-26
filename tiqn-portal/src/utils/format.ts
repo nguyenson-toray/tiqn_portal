@@ -3,15 +3,15 @@
  * Theo quy ước §3.2 của API Contract
  */
 
-/** "2026-09-29" → "29/09/2026" */
+/** "2026-09-29" or "2026-09-29 10:15:00" → "29/09/2026" */
 export function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-");
+  const [y, m, d] = dateStr.split(" ")[0].split("-");
   return `${d}/${m}/${y}`;
 }
 
-/** "2026-09-29" → "29/09" */
+/** "2026-09-29" or "2026-09-29 10:15:00" → "29/09" */
 export function formatDateShort(dateStr: string): string {
-  const [, m, d] = dateStr.split("-");
+  const [, m, d] = dateStr.split(" ")[0].split("-");
   return `${d}/${m}`;
 }
 
