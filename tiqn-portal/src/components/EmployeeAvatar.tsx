@@ -24,28 +24,40 @@ const EmployeeAvatar: React.FC<EmployeeAvatarProps> = ({
   const fallbackSrc = !primarySrc && zaloAvatar && !fallbackError ? zaloAvatar : null;
   const imgSrc = primarySrc || fallbackSrc;
 
-  if (imgSrc) {
-    return (
-      <img
-        src={imgSrc}
-        alt={initials}
-        onError={() => {
-          if (primarySrc) setPrimaryError(true);
-          else setFallbackError(true);
-        }}
-        className={`rounded-full object-cover ${className || ""}`}
-        style={{ width: size, height: size }}
-      />
-    );
-  }
+  const ring = size >= 48;
+  const ringSize = ring ? size + 4 : size;
 
-  return (
+  const inner = imgSrc ? (
+    <img
+      src={imgSrc}
+      alt={initials}
+      onError={() => {
+        if (primarySrc) setPrimaryError(true);
+        else setFallbackError(true);
+      }}
+      className="rounded-full object-cover"
+      style={{ width: size, height: size }}
+    />
+  ) : (
     <div
-      className={`rounded-full bg-[#006AF5] text-white flex items-center justify-center font-bold ${className || ""}`}
+      className="rounded-full bg-gradient-to-br from-[#006AF5] to-[#0050C8] text-white flex items-center justify-center font-bold"
       style={{ width: size, height: size, fontSize: size * 0.4 }}
     >
       {initials}
     </div>
+  );
+
+  if (!ring) return <span className={className || ""}>{inner}</span>;
+
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full bg-gradient-to-br from-[#006AF5] via-[#3b82f6] to-[#60a5fa] ${className || ""}`}
+      style={{ width: ringSize, height: ringSize, padding: 2 }}
+    >
+      <span className="rounded-full bg-white flex items-center justify-center" style={{ width: size, height: size, padding: 1 }}>
+        {inner}
+      </span>
+    </span>
   );
 };
 

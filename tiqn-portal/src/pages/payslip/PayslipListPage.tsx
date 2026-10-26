@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAtom, useAtomValue } from "jotai";
-import { Box, Icon, Page, Spinner, Text } from "zmp-ui";
+import { Box, Icon, Page, Text } from "zmp-ui";
 import { openChat } from "zmp-sdk/apis";
 
 import * as api from "@/api/endpoints";
@@ -13,6 +13,7 @@ import { formatDateShort, formatDate } from "@/utils/format";
 import { clearPayslipCache } from "@/utils/payslipCache";
 import BottomNav from "@/components/BottomNav";
 import ErrorState from "@/components/ErrorState";
+import { PayslipListSkeleton } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import AppHeader from "@/components/AppHeader";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -121,10 +122,8 @@ const PayslipListPage: React.FC = () => {
           </Box>
         )}
 
-        {loading && (
-          <Box className="flex items-center justify-center py-16">
-            <Spinner />
-          </Box>
+        {loading && !data && (
+          <PayslipListSkeleton />
         )}
 
         {error && !loading && (

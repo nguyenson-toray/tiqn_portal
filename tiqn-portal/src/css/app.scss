@@ -8,10 +8,18 @@ html, :root {
   --zaui-light-header-background-color: #006AF5;
   --zaui-light-header-color: #ffffff;
   --zaui-light-header-divider: transparent;
-  --zaui-light-bottom-navigation-background-color: #006AF5;
-  --zaui-light-bottom-navigation-divider-color: transparent;
-  --zaui-light-bottom-navigation-color: rgba(255, 255, 255, 0.6);
-  --zaui-light-bottom-navigation-active-color: #ffffff;
+  --zaui-light-bottom-navigation-background-color: #ffffff;
+  --zaui-light-bottom-navigation-divider-color: #e5e7eb;
+  --zaui-light-bottom-navigation-color: #9ca3af;
+  --zaui-light-bottom-navigation-active-color: #006AF5;
+}
+
+/* Bottom nav label bigger + active bold */
+.zaui-bottom-navigation-item .zaui-bottom-navigation-item-label {
+  font-size: 13px;
+}
+.zaui-bottom-navigation-item-active .zaui-bottom-navigation-item-label {
+  font-weight: 600;
 }
 
 /* Header back icon white */

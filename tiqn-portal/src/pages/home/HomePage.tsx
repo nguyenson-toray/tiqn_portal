@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { Page, Box, Text, Spinner } from "zmp-ui";
+import { Page, Box, Text } from "zmp-ui";
 
 import * as api from "@/api/endpoints";
 import { useAsyncAction } from "@/hooks/useApi";
@@ -15,6 +15,7 @@ import ReadOnlyBanner from "@/components/ReadOnlyBanner";
 import ErrorState from "@/components/ErrorState";
 import AppHeader from "@/components/AppHeader";
 import PullToRefresh from "@/components/PullToRefresh";
+import { HomeSkeleton } from "@/components/Skeleton";
 
 const STATE_COLORS: Record<string, string> = {
   WORKING: "text-green-600",
@@ -58,9 +59,8 @@ const HomePage: React.FC = () => {
   if (loading && !home) {
     return (
       <Page className="flex flex-col bg-gray-50">
-        <Box className="flex-1 flex items-center justify-center">
-          <Spinner visible />
-        </Box>
+        <AppHeader title="Trang chủ" />
+        <HomeSkeleton />
         <BottomNav />
       </Page>
     );

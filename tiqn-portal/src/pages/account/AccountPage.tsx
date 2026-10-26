@@ -69,39 +69,44 @@ const AccountPage: React.FC = () => {
     <Page className="flex flex-col bg-gray-50" hideScrollbar={false}>
       <AppHeader title="Tài khoản" />
 
-      <Box className="flex-1 overflow-auto pb-20">
+      <Box className="flex-1 overflow-auto px-4 pt-3 pb-20 space-y-3">
+        {/* Employee Card */}
         {employee && (
-          <Box className="bg-white px-4 py-5 flex items-center gap-4 border-b border-gray-100">
-            <EmployeeAvatar
-              initials={employee.initials}
-              avatarUrl={employee.avatar_url}
-              size={56}
-            />
-            <Box className="flex-1 min-w-0">
-              <Text className="font-semibold text-lg text-gray-900 truncate">
-                {employee.full_name}
-              </Text>
-              <Text size="small" className="text-gray-500 truncate">
-                {employee.designation}
-              </Text>
+          <Box className="bg-white rounded-xl p-4 shadow-sm">
+            <Box className="flex items-center gap-3">
+              <EmployeeAvatar
+                initials={employee.initials}
+                avatarUrl={employee.avatar_url}
+                size={56}
+              />
+              <Box className="flex-1 min-w-0">
+                <Text className="font-bold text-lg text-gray-900 truncate leading-tight">
+                  {employee.full_name}
+                </Text>
+                <Text size="xSmall" className="text-gray-500 truncate leading-tight mt-0.5">
+                  {employee.section}
+                </Text>
+              </Box>
             </Box>
           </Box>
         )}
 
-        <Box className="bg-white mt-2 border-y border-gray-100">
-          <InfoRow label={"M\u00e3 nh\u00e2n vi\u00ean"} value={employee?.employee_id || ""} />
-          <InfoRow label={"Ch\u1ee9c v\u1ee5"} value={employee ? `${employee.designation}${employee.group ? ` · ${employee.group}` : ""}` : ""} />
-          <InfoRow label={"S\u0110T \u0111\u0103ng nh\u1eadp"} value={maskedPhone || ""} />
+        {/* Info Card */}
+        <Box className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <InfoRow label="Mã nhân viên" value={employee?.employee_id || ""} />
+          <InfoRow label="Chức vụ" value={employee ? `${employee.designation}${employee.group ? ` · ${employee.group}` : ""}` : ""} />
+          <InfoRow label="SĐT đăng nhập" value={maskedPhone || ""} />
         </Box>
 
-        <Box className="bg-white mt-2 border-y border-gray-100 px-4 py-3">
+        {/* OA Card */}
+        <Box className="bg-white rounded-xl p-4 shadow-sm">
           <Box className="flex items-center justify-between">
             <Box>
               <Text size="small" className="text-gray-500">
-                Tài khoản OA - Trang Zalo chính thức của công ty
+                OA công ty
               </Text>
               <Text size="small" className="font-medium text-gray-900 mt-0.5">
-                {oa.followed ? "\u0110\u00e3 quan t\u00e2m" : "Ch\u01b0a quan t\u00e2m"}
+                {oa.followed ? "Đã quan tâm" : "Chưa quan tâm"}
               </Text>
             </Box>
             {!oa.followed && (
@@ -112,15 +117,16 @@ const AccountPage: React.FC = () => {
                 disabled={followingOA}
                 onClick={handleFollowOA}
               >
-                {"Quan t\u00e2m"}
+                Quan tâm
               </Button>
             )}
           </Box>
         </Box>
 
-        <Box className="bg-white mt-2 border-y border-gray-100">
+        {/* Links Card */}
+        <Box className="bg-white rounded-xl shadow-sm overflow-hidden">
           <LinkRow
-            label={"Ch\u00ednh s\u00e1ch d\u1eef li\u1ec7u"}
+            label="Chính sách dữ liệu"
             onClick={() => {
               if (config?.legal.privacy_policy_url) {
                 openWebview({ url: config.legal.privacy_policy_url });
@@ -128,7 +134,7 @@ const AccountPage: React.FC = () => {
             }}
           />
           <LinkRow
-            label={"\u0110i\u1ec1u kho\u1ea3n s\u1eed d\u1ee5ng"}
+            label="Điều khoản sử dụng"
             onClick={() => {
               if (config?.legal.terms_url) {
                 openWebview({ url: config.legal.terms_url });
@@ -137,12 +143,13 @@ const AccountPage: React.FC = () => {
           />
         </Box>
 
+        {/* Contact Card */}
         {config?.contacts.company_phone && (
-          <Box className="bg-white mt-2 border-y border-gray-100">
-            <Box className="px-4 py-3 flex items-center justify-between">
+          <Box className="bg-white rounded-xl p-4 shadow-sm">
+            <Box className="flex items-center justify-between">
               <Box>
                 <Text size="small" className="text-gray-500">
-                  {"Li\u00ean h\u1ec7 c\u00f4ng ty"}
+                  Liên hệ công ty
                 </Text>
                 <Text size="small" className="font-medium text-gray-900 mt-0.5">
                   {config.contacts.company_phone}
@@ -162,19 +169,21 @@ const AccountPage: React.FC = () => {
           </Box>
         )}
 
-        <Box className="px-4 pt-4 pb-2">
+        {/* Footer info */}
+        <Box className="pt-1 pb-2 space-y-2">
           <Text size="xSmall" className="text-gray-400 text-center">
-            {"Phi\u00ean b\u1ea3n "}{APP_VERSION}
+            Phiên bản {APP_VERSION}
+          </Text>
+          <Text size="xSmall" className="text-gray-400 text-center px-2">
+            Ứng dụng được phát triển bởi nhóm IT - TIQN
+          </Text>
+          <Text size="xSmall" className="text-gray-400 text-center px-2">
+            Sai thông tin hồ sơ? Liên hệ phòng Nhân sự để cập nhật trên hệ thống.
           </Text>
         </Box>
 
-        <Box className="px-6 pb-4">
-          <Text size="xSmall" className="text-gray-400 text-center">
-            {"Sai th\u00f4ng tin h\u1ed3 s\u01a1? Li\u00ean h\u1ec7 ph\u00f2ng Nh\u00e2n s\u1ef1 \u0111\u1ec3 c\u1eadp nh\u1eadt tr\u00ean h\u1ec7 th\u1ed1ng."}
-          </Text>
-        </Box>
-
-        <Box className="px-4 pb-6">
+        {/* Logout */}
+        <Box>
           <Button
             className="w-full"
             variant="secondary"
@@ -183,7 +192,7 @@ const AccountPage: React.FC = () => {
             disabled={loggingOut}
             onClick={handleLogout}
           >
-            {"\u0110\u0103ng xu\u1ea5t"}
+            Đăng xuất
           </Button>
         </Box>
       </Box>
@@ -217,7 +226,7 @@ interface LinkRowProps {
 const LinkRow: React.FC<LinkRowProps> = ({ label, onClick }) => (
   <button
     type="button"
-    className="w-full px-4 py-3 flex items-center justify-between border-b border-gray-50 last:border-b-0 bg-white"
+    className="w-full px-4 py-3 flex items-center justify-between border-b border-gray-50 last:border-b-0 active:bg-gray-50"
     onClick={onClick}
   >
     <Text size="small" className="text-gray-900">

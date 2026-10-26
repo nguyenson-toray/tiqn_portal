@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { useAtom, useAtomValue } from "jotai";
-import { Box, Icon, Page, Spinner, Text } from "zmp-ui";
+import { Box, Icon, Page, Text } from "zmp-ui";
 import { openChat } from "zmp-sdk/apis";
 
 import * as api from "@/api/endpoints";
@@ -13,6 +13,7 @@ import { getCachedPayslip, setCachedPayslip, removeCachedPayslip } from "@/utils
 import { formatCurrency, formatCurrencyRaw, formatDecimal, formatByUnit, formatDateShort } from "@/utils/format";
 import ErrorState from "@/components/ErrorState";
 import AppHeader from "@/components/AppHeader";
+import { PayslipDetailSkeleton } from "@/components/Skeleton";
 import PullToRefresh from "@/components/PullToRefresh";
 
 /** Client-side filter: hide non-header rows where both amount and quantity are 0/null */
@@ -106,10 +107,11 @@ const PayslipDetailPage: React.FC = () => {
   };
 
   const chatEnabled = !!chat && !isReadOnly;
-  const periodMonth = period ? period.split("-")[1] : "";
+  const [periodYear, periodMonth] = period ? period.split("-") : ["", ""];
+  const periodLabel = periodMonth && periodYear ? `Lương tháng ${parseInt(periodMonth, 10)}/${periodYear}` : "Phiếu lương";
   const headerTitle = data
-    ? `Lương T${periodMonth}: ${formatDateShort(data.period_from)} – ${formatDateShort(data.period_to)}`
-    : period ? `Lương T${periodMonth}` : "Phiếu lương";
+    ? `${periodLabel}: ${formatDateShort(data.period_from)} – ${formatDateShort(data.period_to)}`
+    : periodLabel;
   const hasRows = data?.rows && data.rows.length > 0;
 
   // Apply client-side zero filtering
@@ -122,9 +124,7 @@ const PayslipDetailPage: React.FC = () => {
       <AppHeader title={headerTitle} showBack />
 
       {loading && !data && (
-        <Box className="flex items-center justify-center py-16">
-          <Spinner />
-        </Box>
+        <PayslipDetailSkeleton />
       )}
 
       {error && !data && (
@@ -157,7 +157,7 @@ const PayslipDetailPage: React.FC = () => {
         <PullToRefresh onRefresh={handleRefresh} className="flex-1 pb-4">
           {/* Net pay + toggle */}
           <Box className="mx-4 mt-3 bg-[#006AF5] rounded-xl px-3 py-2.5 flex items-center gap-2">
-            <Text size="xSmall" className="text-blue-100 flex-shrink-0">Thực lĩnh</Text>
+            <Text size="small" className="text-blue-100 font-semibold flex-shrink-0">Thực lĩnh</Text>
             <Text className="font-bold text-lg text-white flex-1 text-right">
               {formatCurrency(data.net_pay)}
             </Text>
@@ -214,12 +214,12 @@ const PayslipTable: React.FC<{ rows: PayslipRow[] }> = ({ rows }) => {
   return (
     <Box className="mx-4 mt-3 bg-white rounded-lg border border-gray-100 overflow-hidden">
       {/* Sticky header */}
-      <div className="flex items-center px-2 py-2 bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+      <div className="flex items-center px-2 py-1.5 bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
         {!useDisplayLabel && (
-          <span className="w-9 text-[10px] font-semibold text-gray-500 uppercase flex-shrink-0">STT</span>
+          <span className="w-9 text-[11px] font-semibold text-gray-500 uppercase flex-shrink-0">STT</span>
         )}
-        <span className="flex-1 text-[10px] font-semibold text-gray-500 uppercase">Nội dung</span>
-        <span className="w-24 text-[10px] font-semibold text-gray-500 uppercase text-right flex-shrink-0">Số tiền</span>
+        <span className="flex-1 text-[11px] font-semibold text-gray-500 uppercase">Nội dung</span>
+        <span className="w-24 text-[11px] font-semibold text-gray-500 uppercase text-right flex-shrink-0">Số tiền</span>
       </div>
 
       {/* Data rows */}
@@ -241,14 +241,14 @@ const PayslipTableRow: React.FC<{ row: PayslipRow; useDisplayLabel: boolean }> =
 
   if (isNetPay) {
     return (
-      <div className="flex items-baseline px-2 py-2.5 bg-blue-50 border-t-2 border-[#006AF5]">
+      <div className="flex items-baseline px-2 py-1.5 bg-blue-50 border-t-2 border-[#006AF5]">
         {!useDisplayLabel && (
-          <span className="w-9 text-xs font-bold text-[#006AF5] flex-shrink-0 tabular-nums">{row.no}</span>
+          <span className="w-9 text-[12px] font-bold text-[#006AF5] flex-shrink-0 tabular-nums">{row.no}</span>
         )}
-        <span className="flex-1 text-xs font-bold text-[#006AF5] min-w-0 break-words">
+        <span className="flex-1 text-[12px] font-bold text-[#006AF5] min-w-0 break-words">
           {labelText}
         </span>
-        <span className="w-24 text-xs font-bold text-[#006AF5] text-right flex-shrink-0 tabular-nums whitespace-nowrap">
+        <span className="w-24 text-[12px] font-bold text-[#006AF5] text-right flex-shrink-0 tabular-nums whitespace-nowrap">
           {amt}
         </span>
       </div>
@@ -257,13 +257,13 @@ const PayslipTableRow: React.FC<{ row: PayslipRow; useDisplayLabel: boolean }> =
 
   return (
     <div
-      className={`flex items-baseline px-2 py-1.5 ${
+      className={`flex items-baseline px-2 py-1 ${
         row.is_header ? "bg-gray-50 border-t border-gray-100" : ""
       }`}
     >
       {!useDisplayLabel && (
         <span
-          className={`w-9 text-[11px] flex-shrink-0 tabular-nums ${
+          className={`w-9 text-[12px] flex-shrink-0 tabular-nums ${
             row.is_header ? "font-semibold text-gray-800" : "text-gray-400"
           }`}
         >
@@ -272,20 +272,20 @@ const PayslipTableRow: React.FC<{ row: PayslipRow; useDisplayLabel: boolean }> =
       )}
       <div className="flex-1 min-w-0">
         <span
-          className={`text-[11px] break-words ${
+          className={`text-[12px] break-words ${
             row.is_header ? "font-semibold text-gray-800" : "text-gray-600"
           } ${row.level === 1 ? "pl-4" : ""}`}
         >
           {labelText}
         </span>
         {qty && (
-          <span className="text-[10px] text-gray-400 ml-1.5">
+          <span className="text-[11px] text-gray-400 ml-1.5">
             · {qty}
           </span>
         )}
       </div>
       <span
-        className={`w-24 text-[11px] text-right flex-shrink-0 tabular-nums whitespace-nowrap ${
+        className={`w-24 text-[12px] text-right flex-shrink-0 tabular-nums whitespace-nowrap ${
           row.is_header ? "font-semibold text-gray-800" : "text-gray-700"
         }`}
       >

@@ -20,13 +20,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, showBack, rightContent, ch
 
   return (
     <Box
-      className="bg-[#006AF5]"
+      className="bg-gradient-to-r from-[#006AF5] to-[#0050C8]"
       style={{ paddingTop: "var(--zaui-safe-area-inset-top, 0px)" }}
     >
       {/* Row 1: Logo + app name — same level as Zalo native controls */}
       <Box className="px-4 pt-1.5 pb-1 flex items-center gap-2">
         <img src={logo} alt="TORAY" className="h-4 brightness-0 invert" />
-        <Text size="xSmall" className="text-blue-200 font-medium">
+        <Text size="large" className="text-white font-semibold tracking-wide">
           Cổng thông tin nhân viên
         </Text>
       </Box>

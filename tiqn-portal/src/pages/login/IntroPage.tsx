@@ -472,8 +472,13 @@ const IntroPage: React.FC = () => {
           </Box>
         )}
 
+        {/* Author */}
+        <Text className="text-xs text-gray-400 text-center mt-4">
+          Ứng dụng được phát triển bởi nhóm IT - TIQN
+        </Text>
+
         {/* Footer: legal links */}
-        <Box className="mt-4 px-4">
+        <Box className="mt-2 px-4">
           <Text className="text-xs text-gray-400 text-center leading-relaxed">
             Tiếp tục nghĩa là bạn đồng ý với{" "}
             <button

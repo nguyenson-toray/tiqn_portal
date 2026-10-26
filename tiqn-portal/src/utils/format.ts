@@ -5,18 +5,21 @@
 
 /** "2026-09-29" or "2026-09-29 10:15:00" → "29/09/2026" */
 export function formatDate(dateStr: string): string {
+  if (!dateStr) return "";
   const [y, m, d] = dateStr.split(" ")[0].split("-");
   return `${d}/${m}/${y}`;
 }
 
 /** "2026-09-29" or "2026-09-29 10:15:00" → "29/09" */
 export function formatDateShort(dateStr: string): string {
+  if (!dateStr) return "";
   const [, m, d] = dateStr.split(" ")[0].split("-");
   return `${d}/${m}`;
 }
 
 /** "2026-09-29 10:15:00" → "10:15" */
 export function formatTime(datetimeStr: string): string {
+  if (!datetimeStr) return "";
   const parts = datetimeStr.split(" ");
   if (parts.length >= 2) {
     return parts[1].substring(0, 5);
@@ -26,12 +29,14 @@ export function formatTime(datetimeStr: string): string {
 
 /** "2026-09-29 10:15:00" → "10:15, 29/09/2026" */
 export function formatDateTime(datetimeStr: string): string {
-  return `${formatTime(datetimeStr)}, ${formatDate(datetimeStr.split(" ")[0])}`;
+  if (!datetimeStr) return "";
+  return `${formatTime(datetimeStr)}, ${formatDate(datetimeStr)}`;
 }
 
 /** "2026-09-29 10:15:00" → "10:15, 29/09" */
 export function formatDateTimeShort(datetimeStr: string): string {
-  return `${formatTime(datetimeStr)}, ${formatDateShort(datetimeStr.split(" ")[0])}`;
+  if (!datetimeStr) return "";
+  return `${formatTime(datetimeStr)}, ${formatDateShort(datetimeStr)}`;
 }
 
 /** 9150000 → "9.150.000 đ" */
@@ -80,6 +85,7 @@ export function formatByUnit(amount: number, unit: "VND" | "DAY" | "HOUR"): stri
 
 /** "2026-09" → "09/2026" */
 export function formatPeriod(period: string): string {
+  if (!period) return "";
   const [y, m] = period.split("-");
   return `${m}/${y}`;
 }
@@ -92,6 +98,7 @@ export function formatPeriodLabel(period: string): string {
 /** "2026-09-29" → "Thứ Ba" etc. */
 const WEEKDAYS = ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
 export function getWeekday(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split(" ")[0].split("-").map(Number);
   return WEEKDAYS[new Date(y, m - 1, d).getDay()];
 }

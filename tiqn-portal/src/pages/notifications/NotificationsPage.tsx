@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAtom, useSetAtom } from "jotai";
-import { Page, Box, Text, Button, Spinner } from "zmp-ui";
+import { Page, Box, Text, Button } from "zmp-ui";
 
 import * as api from "@/api/endpoints";
 import type { NotificationItem } from "@/api/types";
@@ -11,6 +11,7 @@ import { formatDateTimeShort } from "@/utils/format";
 import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import AppHeader from "@/components/AppHeader";
+import { Skeleton } from "@/components/Skeleton";
 import PullToRefresh from "@/components/PullToRefresh";
 import BottomNav from "@/components/BottomNav";
 
@@ -139,33 +140,39 @@ const NotificationsPage: React.FC = () => {
     <Page className="flex flex-col bg-gray-50" hideScrollbar={false}>
       <AppHeader title="Thông báo" />
 
-      {hasUnread && (
-        <Box className="px-4 py-2 flex justify-end bg-white border-b border-gray-100">
-          <Button
-            variant="tertiary"
-            size="small"
-            onClick={handleMarkAllRead}
-          >
-            {"Đánh dấu đã đọc"}
-          </Button>
-        </Box>
-      )}
-
       {loading && !initialLoaded ? (
-        <Box className="flex-1 flex items-center justify-center">
-          <Spinner visible />
+        <Box className="px-4 pt-3 space-y-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Box key={i} className="bg-white rounded-xl p-4 shadow-sm space-y-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3.5 w-full" />
+              <Skeleton className="h-3 w-20" />
+            </Box>
+          ))}
         </Box>
       ) : items.length === 0 ? (
-        <EmptyState message={"Không có thông báo"} />
+        <EmptyState message="Không có thông báo" />
       ) : (
-        <PullToRefresh onRefresh={handleRefresh} className="flex-1 pb-20">
+        <PullToRefresh onRefresh={handleRefresh} className="flex-1 px-4 pt-3 pb-20 space-y-3">
+          {/* Mark all read */}
+          {hasUnread && (
+            <Box className="flex justify-end">
+              <Button
+                variant="tertiary"
+                size="small"
+                onClick={handleMarkAllRead}
+              >
+                Đánh dấu đã đọc
+              </Button>
+            </Box>
+          )}
+
+          {/* Unread */}
           {unreadItems.length > 0 && (
-            <>
-              <Box className="px-4 pt-3 pb-1">
-                <Text size="xSmall" className="font-semibold text-gray-500 uppercase tracking-wide">
-                  {"Chưa đọc"}
-                </Text>
-              </Box>
+            <Box className="space-y-2">
+              <Text size="xSmall" className="font-semibold text-gray-500 uppercase tracking-wide">
+                Chưa đọc
+              </Text>
               {unreadItems.map((item) => (
                 <NotificationRow
                   key={item.id}
@@ -173,16 +180,15 @@ const NotificationsPage: React.FC = () => {
                   onClick={() => handleTapItem(item)}
                 />
               ))}
-            </>
+            </Box>
           )}
 
+          {/* Read */}
           {readItems.length > 0 && (
-            <>
-              <Box className="px-4 pt-3 pb-1">
-                <Text size="xSmall" className="font-semibold text-gray-500 uppercase tracking-wide">
-                  {"Trước đó"}
-                </Text>
-              </Box>
+            <Box className="space-y-2">
+              <Text size="xSmall" className="font-semibold text-gray-500 uppercase tracking-wide">
+                Trước đó
+              </Text>
               {readItems.map((item) => (
                 <NotificationRow
                   key={item.id}
@@ -190,18 +196,18 @@ const NotificationsPage: React.FC = () => {
                   onClick={() => handleTapItem(item)}
                 />
               ))}
-            </>
+            </Box>
           )}
 
           {hasMore && (
-            <Box className="flex justify-center py-4">
+            <Box className="flex justify-center py-2">
               <Button
                 variant="tertiary"
                 size="small"
                 loading={loading}
                 onClick={handleLoadMore}
               >
-                {"Xem thêm"}
+                Xem thêm
               </Button>
             </Box>
           )}
@@ -221,9 +227,7 @@ interface NotificationRowProps {
 const NotificationRow: React.FC<NotificationRowProps> = ({ item, onClick }) => (
   <button
     type="button"
-    className={`w-full text-left px-4 py-3 border-b border-gray-50 ${
-      !item.is_read ? "bg-blue-50/50" : "bg-white"
-    }`}
+    className="w-full text-left bg-white rounded-xl p-4 shadow-sm active:bg-gray-50"
     onClick={onClick}
   >
     <Box className="flex items-start gap-2">
