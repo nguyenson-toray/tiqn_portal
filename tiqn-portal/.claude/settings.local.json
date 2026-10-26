@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ':*)",
+      "Bash(wc -l \"C:/Users/son.nt/AppData/Local/Temp/claude/d--03-Dev-01-Project-07-Zalo-Mini-App-tiqn-portal-tiqn-portal/00dcbf2f-d2ad-48cf-98be-5bf7497417ca/tasks/\"*.output)",
+      "Bash(npx vite:*)",
+      "Bash(npx zmp:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(ls \"d:\\\\03.Dev\\\\01.Project\\\\07.Zalo Mini App\\\\tiqn_portal\\\\tiqn-portal\"/.env*)"
+    ]
+  }
+}
