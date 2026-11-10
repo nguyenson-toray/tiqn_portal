@@ -6,15 +6,14 @@ import { openChat } from "zmp-sdk/apis";
 
 import * as api from "@/api/endpoints";
 import type { PayslipData, PayslipRow, PayslipSection, PayslipLine } from "@/api/types";
-import { chatAtom, isReadOnlyAtom } from "@/store/auth";
+import { chatAtom, configAtom, isReadOnlyAtom } from "@/store/auth";
 import { viewedPayslipPeriodsAtom } from "@/store/data";
 import { useAsyncAction } from "@/hooks/useApi";
-import { getCachedPayslip, setCachedPayslip, removeCachedPayslip } from "@/utils/payslipCache";
+import { getCachedPayslip, setCachedPayslip } from "@/utils/payslipCache";
 import { formatCurrency, formatCurrencyRaw, formatDecimal, formatByUnit, formatDateShort } from "@/utils/format";
 import ErrorState from "@/components/ErrorState";
 import AppHeader from "@/components/AppHeader";
 import { PayslipDetailSkeleton } from "@/components/Skeleton";
-import PullToRefresh from "@/components/PullToRefresh";
 
 /** Client-side filter: hide non-header rows where both amount and quantity are 0/null */
 function filterZeroRows(rows: PayslipRow[]): PayslipRow[] {
@@ -28,18 +27,24 @@ function filterZeroRows(rows: PayslipRow[]): PayslipRow[] {
 
 interface LocationState {
   published_on?: string;
+  content_version?: string;
 }
 
 const PayslipDetailPage: React.FC = () => {
   const { period } = useParams<{ period: string }>();
   const location = useLocation();
-  const publishedOn = (location.state as LocationState)?.published_on || "";
+  const locState = location.state as LocationState;
+  const publishedOn = locState?.published_on || "";
+  const contentVersion = locState?.content_version;
   const chat = useAtomValue(chatAtom);
+  const config = useAtomValue(configAtom);
   const isReadOnly = useAtomValue(isReadOnlyAtom);
 
   const [viewedPeriods, setViewedPeriods] = useAtom(viewedPayslipPeriodsAtom);
 
-  const [hideZero, setHideZero] = useState(false);
+  // Initial state from config: show_zero_lines=false → hide zeros; missing → show all
+  const showZeroDefault = config?.payslip?.show_zero_lines ?? true;
+  const [hideZero, setHideZero] = useState(!showZeroDefault);
   const [data, setData] = useState<PayslipData | null>(null);
   const fetchedRef = useRef(false);
 
@@ -59,7 +64,7 @@ const PayslipDetailPage: React.FC = () => {
         // Persist to cache
         const pubOn = result.published_on || publishedOn;
         if (pubOn) {
-          setCachedPayslip(period, pubOn, result);
+          setCachedPayslip(period, pubOn, result, result.content_version);
         }
       }
     });
@@ -71,7 +76,7 @@ const PayslipDetailPage: React.FC = () => {
     fetchedRef.current = true;
 
     if (publishedOn) {
-      const cached = getCachedPayslip(period, publishedOn);
+      const cached = getCachedPayslip(period, publishedOn, contentVersion);
       if (cached) {
         setData(cached);
         setViewedPeriods((prev) => new Set(prev).add(period));
@@ -81,20 +86,6 @@ const PayslipDetailPage: React.FC = () => {
 
     fetchData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleRefresh = useCallback(async () => {
-    if (!period) return;
-    // Clear cache for this period, then re-fetch
-    await removeCachedPayslip(period);
-    const result = await loadPayslip(period);
-    if (result) {
-      setData(result);
-      const pubOn = result.published_on || publishedOn;
-      if (pubOn) {
-        setCachedPayslip(period, pubOn, result);
-      }
-    }
-  }, [period, publishedOn, loadPayslip]);
 
   const handleToggleZero = () => {
     setHideZero((prev) => !prev);
@@ -154,7 +145,7 @@ const PayslipDetailPage: React.FC = () => {
       )}
 
       {data && (
-        <PullToRefresh onRefresh={handleRefresh} className="flex-1 pb-4">
+        <div className="flex-1 overflow-auto pb-4">
           {/* Net pay + toggle */}
           <Box className="mx-4 mt-3 bg-[#006AF5] rounded-xl px-3 py-2.5 flex items-center gap-2">
             <Text size="small" className="text-blue-100 font-semibold flex-shrink-0">Thực lĩnh</Text>
@@ -184,7 +175,15 @@ const PayslipDetailPage: React.FC = () => {
               ))}
             </Box>
           )}
-        </PullToRefresh>
+
+          {/* Note from HR (1.8.0) */}
+          {data.note && (
+            <Box className="mx-4 mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+              <Text size="xSmall" className="font-semibold text-amber-700 mb-1">Ghi chú</Text>
+              <Text size="small" className="text-amber-900 whitespace-pre-wrap">{data.note}</Text>
+            </Box>
+          )}
+        </div>
       )}
     </Page>
   );
@@ -207,7 +206,7 @@ function formatAmount(amount: number | null): string {
   return formatCurrencyRaw(amount);
 }
 
-const PayslipTable: React.FC<{ rows: PayslipRow[] }> = ({ rows }) => {
+const PayslipTable: React.FC<{ rows: PayslipRow[] }> = React.memo(({ rows }) => {
   // If any row has display_label, use new layout (no separate STT column)
   const useDisplayLabel = rows.some((r) => r.display_label);
 
@@ -228,9 +227,9 @@ const PayslipTable: React.FC<{ rows: PayslipRow[] }> = ({ rows }) => {
       ))}
     </Box>
   );
-};
+});
 
-const PayslipTableRow: React.FC<{ row: PayslipRow; useDisplayLabel: boolean }> = ({ row, useDisplayLabel }) => {
+const PayslipTableRow: React.FC<{ row: PayslipRow; useDisplayLabel: boolean }> = React.memo(({ row, useDisplayLabel }) => {
   const isNetPay = row.no === "9";
   const qty = formatQuantity(row.quantity, row.quantity_unit);
   const amt = formatAmount(row.amount);
@@ -293,7 +292,7 @@ const PayslipTableRow: React.FC<{ row: PayslipRow; useDisplayLabel: boolean }> =
       </span>
     </div>
   );
-};
+});
 
 // ============================
 // Fallback: sections (< 1.3.0)

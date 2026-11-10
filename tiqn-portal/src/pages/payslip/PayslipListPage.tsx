@@ -10,13 +10,11 @@ import { chatAtom, isReadOnlyAtom } from "@/store/auth";
 import { payslipCacheAtom, viewedPayslipPeriodsAtom } from "@/store/data";
 import { useAsyncAction } from "@/hooks/useApi";
 import { formatDateShort, formatDate } from "@/utils/format";
-import { clearPayslipCache } from "@/utils/payslipCache";
 import BottomNav from "@/components/BottomNav";
 import ErrorState from "@/components/ErrorState";
 import { PayslipListSkeleton } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import AppHeader from "@/components/AppHeader";
-import PullToRefresh from "@/components/PullToRefresh";
 
 const PayslipListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,17 +44,6 @@ const PayslipListPage: React.FC = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleRefresh = useCallback(async () => {
-    // Clear all payslip detail caches so fresh data is fetched
-    await clearPayslipCache();
-    const year = selectedYear ?? undefined;
-    const result = await loadPeriods(year);
-    if (result) {
-      setData(result);
-      setCache({ year: result.year, data: result });
-    }
-  }, [loadPeriods, selectedYear, setCache]);
-
   const handleYearChange = (year: number) => {
     if (year === selectedYear) return;
     setSelectedYear(year);
@@ -80,7 +67,7 @@ const PayslipListPage: React.FC = () => {
     <Page className="flex flex-col h-full bg-gray-50">
       <AppHeader title="Phiếu lương" />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 pb-32">
+      <div className="flex-1 overflow-auto pb-32">
         {/* Chat with payroll staff */}
         {chatEnabled && (
           <button
@@ -168,14 +155,17 @@ const PayslipListPage: React.FC = () => {
                 item={item}
                 viewed={viewedPeriods.has(item.period)}
                 onTap={() => navigate(`/payslip/${item.period}`, {
-                  state: { published_on: item.published_on },
+                  state: {
+                    published_on: item.published_on,
+                    content_version: item.content_version,
+                  },
                 })}
               />
             ))}
           </Box>
         )}
 
-      </PullToRefresh>
+      </div>
 
       <BottomNav />
     </Page>

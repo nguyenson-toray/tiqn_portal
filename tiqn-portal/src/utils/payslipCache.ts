@@ -13,8 +13,10 @@ interface CacheStore {
   entries: CacheEntry[];
 }
 
-function makeCacheKey(period: string, publishedOn: string): string {
-  return `${period}|${publishedOn}`;
+function makeCacheKey(period: string, publishedOn: string, contentVersion?: string): string {
+  return contentVersion
+    ? `${period}|${publishedOn}|${contentVersion}`
+    : `${period}|${publishedOn}`;
 }
 
 // In-memory mirror of Zalo storage
@@ -41,9 +43,9 @@ async function persistCache(): Promise<void> {
   }
 }
 
-/** Get a cached payslip by period and published_on. Returns null if not found or key mismatch. */
-export function getCachedPayslip(period: string, publishedOn: string): PayslipData | null {
-  const key = makeCacheKey(period, publishedOn);
+/** Get a cached payslip by period and published_on (+ optional content_version). Returns null if not found or key mismatch. */
+export function getCachedPayslip(period: string, publishedOn: string, contentVersion?: string): PayslipData | null {
+  const key = makeCacheKey(period, publishedOn, contentVersion);
   const entry = memoryCache.entries.find((e) => e.key === key);
   return entry?.data ?? null;
 }
@@ -53,8 +55,9 @@ export async function setCachedPayslip(
   period: string,
   publishedOn: string,
   data: PayslipData,
+  contentVersion?: string,
 ): Promise<void> {
-  const key = makeCacheKey(period, publishedOn);
+  const key = makeCacheKey(period, publishedOn, contentVersion);
 
   // Remove any existing entry for this period (handles re-publish with different published_on)
   memoryCache.entries = memoryCache.entries.filter(

@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Page, Box, Text, Button } from "zmp-ui";
-import { getAccessToken } from "zmp-sdk/apis";
+import { getAccessToken, openChat } from "zmp-sdk/apis";
 
 import * as api from "@/api/endpoints";
 import { ApiException } from "@/api/client";
 import type { LinkRequestInfo } from "@/api/types";
 import { formatDateTime } from "@/utils/format";
 
-const EMPLOYEE_ID_REGEX = /^TIQN-\d{4}$/;
+const EMPLOYEE_CODE_REGEX = /^\d{4}$/;
 
 /** Normalize Vietnamese name: trim, collapse spaces, capitalize each word */
 function normalizeName(raw: string): string {
@@ -46,9 +46,9 @@ const NotFoundPage: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const showForm = noRequest || (isRejected && canResend) || editing;
 
-  // Form state — pre-fill employee_id when editing existing request
+  // Form state — pre-fill with last 4 digits when editing existing request
   const [employeeId, setEmployeeId] = useState(
-    linkRequest?.employee_id || "",
+    linkRequest?.employee_id?.replace(/^TIQN-/, "") || "",
   );
   const [fullName, setFullName] = useState("");
   const [submittedName, setSubmittedName] = useState("");
@@ -56,10 +56,11 @@ const NotFoundPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  const employeeIdTrimmed = employeeId.trim().toUpperCase();
-  const employeeIdValid = EMPLOYEE_ID_REGEX.test(employeeIdTrimmed);
+  const codeDigits = employeeId.trim().replace(/\D/g, "").slice(0, 4);
+  const codeValid = EMPLOYEE_CODE_REGEX.test(codeDigits);
+  const fullEmployeeId = `TIQN-${codeDigits}`;
   const fullNameValid = fullName.trim().length >= 2;
-  const canSubmit = employeeIdValid && fullNameValid;
+  const canSubmit = codeValid && fullNameValid;
 
   const handleSubmitLink = async () => {
     if (!canSubmit) return;
@@ -81,7 +82,7 @@ const NotFoundPage: React.FC = () => {
 
       const result = await api.linkEmployeeRequest({
         access_token: accessToken,
-        employee_id: employeeIdTrimmed,
+        employee_id: fullEmployeeId,
         full_name: normalizeName(fullName),
       });
 
@@ -89,6 +90,23 @@ const NotFoundPage: React.FC = () => {
       setLinkRequest(result.link_request);
       setSubmittedName(normalizeName(fullName));
       setEditing(false);
+
+      // Open chat with C&B if enabled (both fields from response)
+      const chatTarget = result.link_request_chat;
+      if (chatTarget && result.approval_url) {
+        const message = [
+          `Xin chào, tôi là ${normalizeName(fullName)} (${fullEmployeeId}).`,
+          `Tôi vừa gửi yêu cầu liên kết tài khoản trên TIQN Portal.`,
+          ``,
+          `Link duyệt: ${result.approval_url}`,
+        ].join("\n");
+
+        try {
+          await openChat({ type: chatTarget.type, id: chatTarget.id, message });
+        } catch {
+          // Zalo SDK error — ignore, user still sees "request sent" status
+        }
+      }
     } catch (err) {
       if (err instanceof ApiException) {
         handleApiError(err);
@@ -142,7 +160,7 @@ const NotFoundPage: React.FC = () => {
 
   const handleEdit = () => {
     setEditing(true);
-    setEmployeeId(linkRequest?.employee_id || "");
+    setEmployeeId(linkRequest?.employee_id?.replace(/^TIQN-/, "") || "");
     setFullName("");
     setFieldErrors({});
     setGeneralError(null);
@@ -312,31 +330,38 @@ const NotFoundPage: React.FC = () => {
             {/* Employee ID input */}
             <Box className="mb-3">
               <Text size="xxSmall" className="text-gray-600 mb-1 font-medium">
-                Mã nhân viên
+                Mã nhân viên (4 chữ số cuối)
               </Text>
-              <input
-                type="text"
-                placeholder="TIQN-0001"
-                value={employeeId}
-                onChange={(e) => {
-                  setEmployeeId(e.target.value.toUpperCase());
-                  setFieldErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.employee_id;
-                    return next;
-                  });
-                  setGeneralError(null);
-                }}
-                maxLength={9}
-                className={`w-full px-3 py-2.5 border rounded-lg text-sm font-mono tracking-wider bg-white focus:outline-none ${
-                  (employeeId && !employeeIdValid) || fieldErrors.employee_id
-                    ? "border-red-300 focus:border-red-400"
-                    : "border-gray-300 focus:border-[#006AF5]"
-                }`}
-              />
-              {employeeId && !employeeIdValid && !fieldErrors.employee_id && (
+              <div className="flex items-center gap-0">
+                <span className="px-3 py-2.5 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-sm font-mono text-gray-500">
+                  TIQN-
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="0001"
+                  value={employeeId}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    setEmployeeId(digits);
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.employee_id;
+                      return next;
+                    });
+                    setGeneralError(null);
+                  }}
+                  maxLength={4}
+                  className={`flex-1 px-3 py-2.5 border rounded-r-lg text-sm font-mono tracking-wider bg-white focus:outline-none ${
+                    (employeeId && !codeValid) || fieldErrors.employee_id
+                      ? "border-red-300 focus:border-red-400"
+                      : "border-gray-300 focus:border-[#006AF5]"
+                  }`}
+                />
+              </div>
+              {employeeId && !codeValid && !fieldErrors.employee_id && (
                 <Text size="xxSmall" className="text-red-500 mt-1">
-                  Định dạng: TIQN-xxxx (4 chữ số)
+                  Nhập đúng 4 chữ số
                 </Text>
               )}
               {fieldErrors.employee_id && (

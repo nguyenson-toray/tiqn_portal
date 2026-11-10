@@ -107,6 +107,8 @@ export interface AppConfig {
   uploads: { max_files: number; max_size_mb: number; accept: string[] };
   read_only_days: number;
   features: Features;
+  /** @since 1.9.0 */
+  payslip?: { show_zero_lines: boolean };
 }
 
 export interface Features {
@@ -126,6 +128,10 @@ export interface LinkEmployeeRequestData {
   status: "PENDING";
   message: string;
   link_request: LinkRequestInfo;
+  /** @since 1.10.0 — chat target for C&B approval; null if disabled */
+  link_request_chat?: ChatTarget | null;
+  /** @since 1.10.0 — ERP approval URL for C&B; null if disabled */
+  approval_url?: string | null;
 }
 
 export interface LinkRequestInfo {
@@ -217,7 +223,7 @@ export interface HomeData {
     provisional: boolean;
   } | null;
   overtime: { period: string; hours: number; source: "ERP" } | null;
-  latest_payslip: { period: string; label: string; published_on: string; published_at: string } | null;
+  latest_payslip: { period: string; label: string; published_on: string; published_at: string; content_version?: string } | null;
   notifications: {
     unread: number;
     latest: NotificationItem | null;
@@ -540,6 +546,8 @@ export interface PayslipPeriodItem {
   pay_date: string;
   published_on: string;
   is_new: boolean;
+  /** @since 1.9.0 — changes when HR re-applies labels */
+  content_version?: string;
 }
 
 export interface PayslipPeriodsData {
@@ -592,8 +600,12 @@ export interface PayslipData {
   period_to: string;
   pay_date: string;
   published_on: string;
+  /** @since 1.9.0 — changes when HR re-applies labels */
+  content_version?: string;
   currency: string;
   net_pay: number;
+  /** @since 1.8.0 — HR note for the payslip */
+  note?: string | null;
   include_zero: boolean;
   employee: Pick<Employee, "employee_id" | "full_name" | "department" | "section" | "group">;
   rows?: PayslipRow[];

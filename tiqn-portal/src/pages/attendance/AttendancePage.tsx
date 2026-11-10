@@ -1,11 +1,10 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { Page, Box } from "zmp-ui";
 
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import ReadOnlyBanner from "@/components/ReadOnlyBanner";
-import PullToRefresh from "@/components/PullToRefresh";
 import { useAtomValue } from "jotai";
 import { isReadOnlyAtom } from "@/store/auth";
 
@@ -29,15 +28,8 @@ const AttendancePage: React.FC = () => {
   const isReadOnly = useAtomValue(isReadOnlyAtom);
   const [activeTab, setActiveTab] = useState<TabKey>(() => getInitialTab(location.pathname));
 
-  // Each tab registers its refresh function
-  const refreshFnRef = useRef<(() => Promise<void>) | null>(null);
-
-  const handleRefresh = useCallback(async () => {
-    if (refreshFnRef.current) await refreshFnRef.current();
-  }, []);
-
   const registerRefresh = useCallback((fn: () => Promise<void>) => {
-    refreshFnRef.current = fn;
+    // kept for tab API compatibility — no longer used for pull-to-refresh
   }, []);
 
   return (
@@ -66,10 +58,10 @@ const AttendancePage: React.FC = () => {
       </Box>
 
       {/* Tab Content */}
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 px-4 pt-3 pb-24 space-y-3">
+      <div className="flex-1 overflow-auto px-4 pt-3 pb-24 space-y-3">
         {activeTab === "calendar" && <CalendarTabContent registerRefresh={registerRefresh} />}
         {activeTab === "summary" && <SummaryTabContent registerRefresh={registerRefresh} />}
-      </PullToRefresh>
+      </div>
 
       <BottomNav />
     </Page>

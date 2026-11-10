@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from "react";
+import React, { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAtom, useSetAtom } from "jotai";
 import { Page, Box, Text, Button } from "zmp-ui";
@@ -12,7 +12,6 @@ import EmptyState from "@/components/EmptyState";
 import ErrorState from "@/components/ErrorState";
 import AppHeader from "@/components/AppHeader";
 import { Skeleton } from "@/components/Skeleton";
-import PullToRefresh from "@/components/PullToRefresh";
 import BottomNav from "@/components/BottomNav";
 
 const PAGE_SIZE = 20;
@@ -75,17 +74,6 @@ const NotificationsPage: React.FC = () => {
     if (!cache) loadData(1);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleRefresh = useCallback(async () => {
-    setPage(1);
-    const data = await fetchNotifications({ page: 1, page_size: PAGE_SIZE });
-    if (data) {
-      setItems(data.items);
-      setHasMore(data.has_more);
-      setInitialLoaded(true);
-      setCache({ items: data.items, hasMore: data.has_more, unread: data.unread });
-    }
-  }, [fetchNotifications, setCache]);
-
   const handleLoadMore = useCallback(() => {
     if (!hasMore || loadingMoreRef.current) return;
     loadingMoreRef.current = true;
@@ -122,8 +110,8 @@ const NotificationsPage: React.FC = () => {
     navigateByTarget(item.target, navigate);
   };
 
-  const unreadItems = items.filter((n) => !n.is_read);
-  const readItems = items.filter((n) => n.is_read);
+  const unreadItems = useMemo(() => items.filter((n) => !n.is_read), [items]);
+  const readItems = useMemo(() => items.filter((n) => n.is_read), [items]);
   const hasUnread = unreadItems.length > 0;
 
   if (error && !initialLoaded) {
@@ -153,7 +141,7 @@ const NotificationsPage: React.FC = () => {
       ) : items.length === 0 ? (
         <EmptyState message="Không có thông báo" />
       ) : (
-        <PullToRefresh onRefresh={handleRefresh} className="flex-1 px-4 pt-3 pb-20 space-y-3">
+        <div className="flex-1 overflow-auto px-4 pt-3 pb-20 space-y-3">
           {/* Mark all read */}
           {hasUnread && (
             <Box className="flex justify-end">
@@ -177,7 +165,7 @@ const NotificationsPage: React.FC = () => {
                 <NotificationRow
                   key={item.id}
                   item={item}
-                  onClick={() => handleTapItem(item)}
+                  onTap={handleTapItem}
                 />
               ))}
             </Box>
@@ -193,7 +181,7 @@ const NotificationsPage: React.FC = () => {
                 <NotificationRow
                   key={item.id}
                   item={item}
-                  onClick={() => handleTapItem(item)}
+                  onTap={handleTapItem}
                 />
               ))}
             </Box>
@@ -211,7 +199,7 @@ const NotificationsPage: React.FC = () => {
               </Button>
             </Box>
           )}
-        </PullToRefresh>
+        </div>
       )}
 
       <BottomNav />
@@ -221,14 +209,14 @@ const NotificationsPage: React.FC = () => {
 
 interface NotificationRowProps {
   item: NotificationItem;
-  onClick: () => void;
+  onTap: (item: NotificationItem) => void;
 }
 
-const NotificationRow: React.FC<NotificationRowProps> = ({ item, onClick }) => (
+const NotificationRow: React.FC<NotificationRowProps> = React.memo(({ item, onTap }) => (
   <button
     type="button"
     className="w-full text-left bg-white rounded-xl p-4 shadow-sm active:bg-gray-50"
-    onClick={onClick}
+    onClick={() => onTap(item)}
   >
     <Box className="flex items-start gap-2">
       {!item.is_read && (
@@ -250,6 +238,6 @@ const NotificationRow: React.FC<NotificationRowProps> = ({ item, onClick }) => (
       </Box>
     </Box>
   </button>
-);
+));
 
 export default NotificationsPage;

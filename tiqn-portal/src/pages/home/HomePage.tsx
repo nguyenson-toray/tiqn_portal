@@ -1,20 +1,20 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { Page, Box, Text } from "zmp-ui";
 
 import * as api from "@/api/endpoints";
 import { useAsyncAction } from "@/hooks/useApi";
 import { useConfigRefresh } from "@/hooks/useConfigRefresh";
 import { configAtom, employeeAtom, accessAtom, chatAtom, isReadOnlyAtom } from "@/store/auth";
-import { homeDataAtom } from "@/store/data";
+import { homeDataAtom, allDataAtoms, viewedPayslipPeriodsAtom } from "@/store/data";
+import { clearPayslipCache } from "@/utils/payslipCache";
 import { formatDate, formatDateShort, formatTime, formatDecimal } from "@/utils/format";
 import BottomNav from "@/components/BottomNav";
 import EmployeeAvatar from "@/components/EmployeeAvatar";
 import ReadOnlyBanner from "@/components/ReadOnlyBanner";
 import ErrorState from "@/components/ErrorState";
 import AppHeader from "@/components/AppHeader";
-import PullToRefresh from "@/components/PullToRefresh";
 import { HomeSkeleton } from "@/components/Skeleton";
 
 const STATE_COLORS: Record<string, string> = {
@@ -34,6 +34,7 @@ const HomePage: React.FC = () => {
   const isReadOnly = useAtomValue(isReadOnlyAtom);
   const setChat = useSetAtom(chatAtom);
   const features = config?.features;
+  const store = useStore();
 
   useConfigRefresh();
 
@@ -52,9 +53,24 @@ const HomePage: React.FC = () => {
     if (!home) loadData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleRefresh = useCallback(async () => {
-    await loadData();
-  }, [loadData]);
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefreshAll = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Clear all in-memory data caches
+      for (const a of allDataAtoms) {
+        store.set(a, null as any);
+      }
+      // Reset viewedPayslipPeriods to empty Set (not null — it's a Set<string>)
+      store.set(viewedPayslipPeriodsAtom, new Set<string>());
+      // Clear persisted payslip cache
+      await clearPayslipCache();
+      // Re-fetch home data
+      await loadData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [store, loadData]);
 
   if (loading && !home) {
     return (
@@ -89,7 +105,7 @@ const HomePage: React.FC = () => {
 
       {isReadOnly && <ReadOnlyBanner />}
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 px-4 pt-3 pb-20 space-y-3">
+      <div className="flex-1 overflow-auto px-4 pt-3 pb-20 space-y-3">
         {/* Employee Card */}
         {emp && (
           <Box className="bg-white rounded-xl p-4 shadow-sm">
@@ -158,7 +174,10 @@ const HomePage: React.FC = () => {
             onClick={() => {
               if (home?.latest_payslip) {
                 navigate(`/payslip/${home.latest_payslip.period}`, {
-                  state: { published_on: home.latest_payslip.published_at },
+                  state: {
+                    published_on: home.latest_payslip.published_at,
+                    content_version: home.latest_payslip.content_version,
+                  },
                 });
               } else {
                 navigate("/payslip");
@@ -297,7 +316,27 @@ const HomePage: React.FC = () => {
             </Text>
           </button>
         )}
-      </PullToRefresh>
+
+        {/* Refresh all data */}
+        <button
+          type="button"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white shadow-sm active:bg-gray-50 disabled:opacity-50"
+          onClick={handleRefreshAll}
+          disabled={refreshing}
+        >
+          <svg
+            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round"
+            className={refreshing ? "animate-spin" : ""}
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+          <Text size="xSmall" className="text-gray-500 font-medium">
+            {refreshing ? "Đang làm mới..." : "Làm mới dữ liệu"}
+          </Text>
+        </button>
+      </div>
 
       <BottomNav />
     </Page>

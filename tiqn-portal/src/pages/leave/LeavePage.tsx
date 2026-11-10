@@ -19,7 +19,6 @@ import ErrorState from "@/components/ErrorState";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import AppHeader from "@/components/AppHeader";
-import PullToRefresh from "@/components/PullToRefresh";
 
 type FilterTab = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
 
@@ -94,22 +93,6 @@ const LeavePage: React.FC = () => {
     if (!appsCache) loadApplications();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleRefresh = useCallback(async () => {
-    setActiveFilter("ALL");
-    setSelectedYear(undefined);
-    setPage(1);
-    await Promise.all([
-      loadBalance(),
-      (async () => {
-        const data = await fetchApps({ page: 1, page_size: 10 });
-        if (data) {
-          setAppData(data);
-          setItems(data.items);
-          setAppsCache({ data, items: data.items });
-        }
-      })(),
-    ]);
-  }, [loadBalance, fetchApps, setAppsCache]);
 
   const handleYearChange = (yr: number) => {
     setSelectedYear(yr);
@@ -171,7 +154,7 @@ const LeavePage: React.FC = () => {
 
       <AppHeader title="Nghỉ phép" />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 px-4 pt-3 pb-24 space-y-3">
+      <div className="flex-1 overflow-auto px-4 pt-3 pb-24 space-y-3">
         {/* Annual Leave Balance Card */}
         {annual && (
           <Box className="bg-white rounded-xl p-4 shadow-sm">
@@ -342,7 +325,7 @@ const LeavePage: React.FC = () => {
             </Box>
           )}
         </Box>
-      </PullToRefresh>
+      </div>
 
       {/* FAB */}
       {canCreate && (
