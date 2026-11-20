@@ -28,7 +28,6 @@ const NAV_ITEMS: NavItem[] = [
   { key: "/attendance", label: "Chấm công", icon: "zi-clock-1", feature: "attendance" },
   { key: "/leave", label: "Nghỉ phép", icon: "zi-note", feature: "leave_view" },
   { key: "/notifications", label: "Thông báo", icon: "zi-notif", feature: "notifications" },
-  { key: "/account", label: "Tài khoản", icon: "zi-user", always: true },
 ];
 
 const BadgeIcon: React.FC<{ icon: string; count: number }> = ({ icon, count }) => (

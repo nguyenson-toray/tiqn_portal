@@ -57,7 +57,8 @@ const PayslipListPage: React.FC = () => {
 
   const handleChat = () => {
     if (chat) {
-      openChat({ type: chat.type, id: chat.id });
+      const msg = chat.message || undefined;
+      openChat({ type: chat.type, id: chat.id, ...(msg ? { message: msg } : {}) });
     }
   };
 
@@ -72,21 +73,23 @@ const PayslipListPage: React.FC = () => {
         {chatEnabled && (
           <button
             type="button"
-            className="w-full px-4 py-2.5 bg-white border-b border-gray-100 flex items-center gap-2 active:bg-gray-50"
+            className="w-full px-4 py-3 bg-white border-b border-gray-100 flex items-center gap-3 active:bg-gray-50"
             onClick={handleChat}
           >
-            <Icon icon="zi-chat" size={20} className="text-[#006AF5]" />
-            <Box className="flex-1 text-left">
+            <Box className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <Icon icon="zi-chat" size={20} className="text-[#006AF5]" />
+            </Box>
+            <Box className="flex-1 text-left min-w-0">
               <Text size="small" className="font-medium text-[#006AF5]">
-                Chat với nhân viên phụ trách công, lương
+                {chat.label || "Chat với nhân viên phụ trách công, lương"}
               </Text>
-              {chat.type === "user" && chat.name && (
-                <Text size="xxSmall" className="text-gray-400">
+              {chat.name && (
+                <Text size="xxSmall" className="text-gray-400 truncate">
                   {chat.name}
                 </Text>
               )}
             </Box>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            <Icon icon="zi-chevron-right" size={16} className="text-gray-400" />
           </button>
         )}
 
@@ -217,7 +220,7 @@ const PeriodCard: React.FC<PeriodCardProps> = ({ item, viewed, onTap }) => {
           </Text>
         </Box>
 
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+        <Icon icon="zi-chevron-right" size={16} className="text-gray-400" />
       </Box>
     </Box>
   );

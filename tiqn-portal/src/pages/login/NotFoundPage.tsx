@@ -305,18 +305,17 @@ const NotFoundPage: React.FC = () => {
             </Text>
 
             {/* Warning */}
-            <Box className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <Box className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
               <Box className="flex items-start gap-2">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5" aria-hidden="true">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                <Text size="xxSmall" className="text-amber-800 leading-relaxed">
-                  Mỗi số điện thoại Zalo luôn được kiểm tra &amp; gán với 1 nhân viên duy nhất.
-                  Vì vậy hãy nhập đúng thông tin mã nhân viên, họ tên của mình.
-                  Nếu bạn nhập thông tin của người khác, bộ phận Nhân sự sẽ từ chối quyền truy cập vào ứng dụng này.
-                </Text>
+                <Text className="text-red-500 text-base leading-none mt-0.5 flex-shrink-0">⚠</Text>
+                <Box className="space-y-1.5">
+                  <Text size="xxSmall" className="text-red-700 leading-relaxed">
+                    Nhập đủ 4 chữ số cuối của mã nhân viên và họ tên đầy đủ (gõ <span className="font-semibold">tiếng Việt có dấu</span>).
+                  </Text>
+                  <Text size="xxSmall" className="text-red-700 leading-relaxed">
+                    Mỗi tài khoản Zalo chỉ được gán với 1 nhân viên duy nhất.
+                  </Text>
+                </Box>
               </Box>
             </Box>
 
@@ -352,11 +351,10 @@ const NotFoundPage: React.FC = () => {
                     setGeneralError(null);
                   }}
                   maxLength={4}
-                  className={`flex-1 px-3 py-2.5 border rounded-r-lg text-sm font-mono tracking-wider bg-white focus:outline-none ${
-                    (employeeId && !codeValid) || fieldErrors.employee_id
-                      ? "border-red-300 focus:border-red-400"
-                      : "border-gray-300 focus:border-[#006AF5]"
-                  }`}
+                  className={`flex-1 px-3 py-2.5 border rounded-r-lg text-sm font-mono tracking-wider bg-white focus:outline-none ${(employeeId && !codeValid) || fieldErrors.employee_id
+                    ? "border-red-300 focus:border-red-400"
+                    : "border-gray-300 focus:border-[#006AF5]"
+                    }`}
                 />
               </div>
               {employeeId && !codeValid && !fieldErrors.employee_id && (
@@ -394,11 +392,10 @@ const NotFoundPage: React.FC = () => {
                     setFullName(normalizeName(fullName));
                   }
                 }}
-                className={`w-full px-3 py-2.5 border rounded-lg text-sm bg-white focus:outline-none ${
-                  fieldErrors.full_name
-                    ? "border-red-300 focus:border-red-400"
-                    : "border-gray-300 focus:border-[#006AF5]"
-                }`}
+                className={`w-full px-3 py-2.5 border rounded-lg text-sm bg-white focus:outline-none ${fieldErrors.full_name
+                  ? "border-red-300 focus:border-red-400"
+                  : "border-gray-300 focus:border-[#006AF5]"
+                  }`}
               />
               {fieldErrors.full_name && (
                 <Text size="xxSmall" className="text-red-500 mt-1">

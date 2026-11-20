@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import type { Employee, Access, AppConfig, MeData, ChatTarget } from "@/api/types";
+import type { Employee, Access, AppConfig, MeData, ChatTarget, OAFollowData } from "@/api/types";
 
 // Session token (in-memory only, persisted to Zalo storage separately)
 export const tokenAtom = atom<string | null>(null);
@@ -17,7 +17,7 @@ export const maskedPhoneAtom = atom<string | null>(null);
 export const loginMethodAtom = atom<MeData["login_method"] | null>(null);
 
 // OA follow state
-export const oaAtom = atom<{ followed: boolean; show_invite: boolean }>({
+export const oaAtom = atom<OAFollowData>({
   followed: false,
   show_invite: false,
 });

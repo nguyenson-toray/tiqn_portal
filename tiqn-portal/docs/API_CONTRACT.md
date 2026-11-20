@@ -1,6 +1,6 @@
 # Employee Portal — Hợp đồng giao diện với Zalo Mini App "Cổng nhân viên"
 
-> **Phiên bản contract: 1.10.0 (31/10/2026).** Giai đoạn hiện tại **chỉ mở phiếu lương** (+ thông báo) — xem §3.5.
+> **Phiên bản contract: 1.12.0 (19/11/2026).** Giai đoạn hiện tại **chỉ mở phiếu lương** (+ thông báo) — xem §3.5.
 > **Đã chạy thật:** xác thực + phiếu lương + thông báo (M1). **M2** (các màn chỉ xem) code xong, chờ restart.
 > Chưa code: tạo/hủy đơn nghỉ, giấy tờ, giải trình (M3) và tin OA (M4). Xem §13. Tài liệu này được viết trước để đội Mini App dựng 21 màn bằng mock
 > (dữ liệu mẫu ở mỗi endpoint), góp ý, rồi backend mới code theo đúng bản đã chốt.
@@ -393,9 +393,21 @@ Gọi khi mở app, trước mọi màn (01, 03, 04, 05, 09 cần các số liê
     "leave_view": true, "leave_create": true,
     "explanation_create": true, "notifications": true, "oa_invite": true
   },
-  "payslip": { "show_zero_lines": false }
+  "payslip": { "show_zero_lines": false },
+  "history": { "months": 12, "from_month": "2025-12" }
 }}
 ```
+
+`history` *(từ 1.12.0)*: Mini App chỉ đọc được dữ liệu **n tháng gần nhất, tính cả tháng này**. Phòng Nhân sự đặt n
+trên ERP (mặc định 12). Giới hạn này chỉ áp cho dữ liệu trả về Mini App; trên ERP vẫn xem được hết.
+- `from_month` (`YYYY-MM`) là tháng / kỳ lương sớm nhất còn đọc được. Ví dụ n = 12 vào tháng 11/2026 → `"2025-12"`.
+  Cùng một mốc dùng cho tháng lịch (`month`), kỳ lương (`period`) và năm (`year` < năm của `from_month` bị từ chối).
+- Cả hai `null` = không giới hạn.
+- Dùng để giới hạn bộ chọn tháng / năm ở chấm công, nghỉ phép, phiếu lương.
+- Endpoint nhận tháng / ngày / kỳ / năm cũ hơn trả `VALIDATION` với `field` tương ứng và `message` kiểu
+  "Chỉ xem được dữ liệu 12 tháng gần nhất.". Bản app cũ hiện nguyên văn `message` nên không vỡ.
+- Danh sách (đơn nghỉ, giải trình, phiếu lương) bỏ bản ghi cũ hơn. Mở chi tiết bản ghi cũ trả `NOT_FOUND`.
+- Thông báo **không** bị giới hạn.
 
 `payslip.show_zero_lines` *(từ 1.9.0)*: trạng thái **ban đầu** của nút "Ẩn khoản 0đ" khi mở một phiếu — `false` = mở
 ra đã ẩn khoản 0đ, `true` = hiện đủ như phiếu giấy. Phòng Nhân sự cấu hình trên ERP. Nhân viên vẫn bấm nút để đổi;
@@ -425,7 +437,8 @@ ra đã ẩn khoản 0đ, `true` = hiện đủ như phiếu giấy. Phòng Nhâ
                 "section": "Sewing", "group": "Sewing 05", "date_of_joining": "2021-03-15",
                 "relieving_date": null, "avatar_url": null },
   "access": { "mode": "FULL", "read_only_until": null },
-  "oa": { "followed": false, "show_invite": true },
+  "oa": { "followed": false, "show_invite": true, "oa_id": "1234567890123456789",
+          "force_follow": false, "force_follow_delay_seconds": 10, "need_id_by_oa": false },
   "expired_on": null,
   "message": null
 }}
@@ -573,12 +586,16 @@ Dùng khi mở lại app và ở màn 09 (Tài khoản).
   "login_method": "ZALO_PHONE",
   "masked_phone": "09•• ••• 123",
   "session_expires_on": "2026-11-11 08:15:00",
-  "oa": { "followed": false, "show_invite": false },
-  "chat": { "type": "user", "id": "7664780689128284452", "name": "Chị Lan - Tiền lương" }
+  "oa": { "followed": false, "show_invite": false, "oa_id": "1234567890123456789",
+          "force_follow": false, "force_follow_delay_seconds": 10, "need_id_by_oa": false },
+  "chat": { "type": "user", "id": "7664780689128284452", "name": "Chị Lan - Tiền lương",
+            "label": "Chat với nhân viên phụ trách công lương",
+            "message": "Xin chào!, Tôi là Nguyễn Văn An - TIQN-0231" }
 }}
 ```
 
 `chat` (từ 1.2.0): đích của nút "Chat với C&B" — xem [Chat với C&B](#chat-với-cb-màn-19-20). Cũng có trong `get_home`.
+`oa`: trạng thái quan tâm OA — xem [`set_oa_follow`](#set_oa_follow--post-màn-07-09). Cũng có trong `login`, `get_home`.
 
 `login_method`: `ZALO_PHONE` (SĐT do Zalo xác nhận lúc đăng nhập) · `STORED_PHONE` (SĐT lấy từ tài khoản) ·
 `DEV` (đăng nhập dev). Màn 09 có thể dùng để gợi ý "Cập nhật số điện thoại" khi khác `ZALO_PHONE`.
@@ -598,6 +615,10 @@ khoản Zalo **của chính người gọi**; phòng Nhân sự dùng giá trị
 `idByOA` rỗng (Mini App chưa được OA xác thực, người dùng chưa quan tâm OA) → không cần gọi. Giá trị không
 phải số → `VALIDATION`.
 
+⚠ *(19/11/2026)* Server chưa từng nhận được lần gọi nào → **cả 8 tài khoản chưa có ID by OA**. `idByOA` chỉ có
+**sau khi** người dùng quan tâm OA, nên ngoài lúc đăng nhập phải gọi lại `getUserInfo()` **ngay sau** `followOA()`
+thành công, và mỗi khi `oa.need_id_by_oa = true` (từ 1.11.0). Có thể gửi luôn kèm `set_oa_follow` (`id_by_oa`).
+
 ### `logout` — POST
 
 Thu hồi token hiện tại. Luôn trả `{ "ok": true, "data": null }`, kể cả token đã hết hạn.
@@ -606,14 +627,35 @@ Thu hồi token hiện tại. Luôn trả `{ "ok": true, "data": null }`, kể c
 
 | Tham số | Bắt buộc | |
 |---|---|---|
-| `action` | ✅ | `FOLLOWED` (sau khi `followOA()` thành công) · `DISMISSED` (bấm "Để sau" ở màn 07) · `UNFOLLOWED` |
+| `action` | ✅ | `FOLLOWED` (sau khi `followOA()` thành công) · `DISMISSED` (bấm "Để sau" ở màn 07) · `UNFOLLOWED` (từ 1.12.0: khi kiểm tra lúc mở app thấy đã bỏ quan tâm — xem dưới bảng `oa`) |
+| `id_by_oa` | | *(từ 1.11.0)* `getUserInfo().idByOA` đọc ngay sau `followOA()` — chỉ dùng với `FOLLOWED`, lưu như `set_id_by_oa`. Không phải số → `VALIDATION` (và **không** lưu `FOLLOWED`): chỉ gửi khi khác rỗng |
 
 ```json
-{ "ok": true, "data": { "followed": true, "show_invite": false } }
+{ "ok": true, "data": { "followed": true, "show_invite": false, "oa_id": "1234567890123456789",
+                        "force_follow": false, "force_follow_delay_seconds": 10, "need_id_by_oa": false,
+                        "intro": "OA: Toray International VN - CN Quảng Ngãi\nLà kênh chính thức của công ty trên Zalo.\n…" } }
 ```
 
-`show_invite` = chưa quan tâm **và** chưa từng bấm "Để sau". Màn 07 chỉ hiện khi `show_invite: true`.
-Server không kiểm chứng được với Zalo là đã quan tâm thật — chỉ dùng để ẩn/hiện lời mời.
+**Đối tượng `oa`** (trả ở `login`, `me`, `get_home`, `set_oa_follow`):
+
+| Field | Từ | Quy tắc |
+|---|---|---|
+| `followed` | 1.0 | đã quan tâm OA (theo app báo qua `set_oa_follow`). Hiện trạng thái này trên trang chủ |
+| `show_invite` | 1.0 | chưa quan tâm **và** chưa từng bấm "Để sau" **và** ERP bật lời mời. Màn 07 (thẻ mời) chỉ hiện khi `true` — **không đổi** |
+| `oa_id` | 1.11.0 | OA ID cho `followOA()` (= `get_config().oa.oa_id`); `null` = chưa cấu hình |
+| `force_follow` | 1.11.0 | ERP bật **"Nhắc quan tâm OA mỗi lần mở app"** và tài khoản chưa quan tâm. App hiện **popup nhắc** sau `force_follow_delay_seconds` giây kể từ lúc mở, **mỗi lần mở app**, kể cả khi đã bấm "Để sau" trước đó. 🔴 Popup **phải có nút "Để sau"** và **không được khoá** chức năng nào. Luôn `false` ở Review Mode |
+| `force_follow_delay_seconds` | 1.11.0 | số giây chờ (0–300, mặc định 10); luôn có |
+| `need_id_by_oa` | 1.11.0 | đã quan tâm mà ERP chưa có ID by OA → gọi `getUserInfo()`; `idByOA` khác rỗng thì gửi `set_id_by_oa`. Luôn `false` ở Review Mode |
+| `intro` | 1.12.0 | lời giới thiệu OA do phòng Nhân sự soạn (văn bản thường, **giữ xuống dòng** `\n`, tối đa 1000 ký tự). Hiện ở khối OA trang chủ, thẻ mời màn 07 và popup nhắc. `null` = dùng chữ của app. Review Mode cũng có |
+
+Server không kiểm chứng được với Zalo là đã quan tâm thật. Người dùng bỏ quan tâm ngoài Mini App thì ERP không
+biết cho tới khi app báo `UNFOLLOWED`. Thiếu field mới (server cũ) → coi như `false` / bỏ qua.
+
+**Đồng bộ trạng thái mỗi lần mở app** *(từ 1.12.0)*:
+- Sau khi đăng nhập, gọi `getUserInfo()` và đọc `followedOA`. Field này chỉ có khi Mini App đã liên kết OA; thiếu thì bỏ qua.
+- So với `oa.followed`: khác thì gọi `set_oa_follow` với `FOLLOWED` (kèm `id_by_oa` nếu `idByOA` khác rỗng) hoặc `UNFOLLOWED`.
+- Gộp với lần gọi `getUserInfo` của `need_id_by_oa`: tối đa 1 lần mỗi lần mở app.
+- `UNFOLLOWED` giữ nguyên ID by OA đã lưu.
 
 ---
 
@@ -654,8 +696,11 @@ Server không kiểm chứng được với Zalo là đã quan tâm thật — c
                 "created_at": "2026-09-05 08:00:00", "is_read": false,
                 "target": { "screen": "PAYSLIP", "id": "2026-08" } }
   },
-  "oa": { "followed": false, "show_invite": false },
-  "chat": { "type": "user", "id": "7664780689128284452", "name": "Chị Lan - Tiền lương" }
+  "oa": { "followed": false, "show_invite": false, "oa_id": "1234567890123456789",
+          "force_follow": false, "force_follow_delay_seconds": 10, "need_id_by_oa": false },
+  "chat": { "type": "user", "id": "7664780689128284452", "name": "Chị Lan - Tiền lương",
+            "label": "Chat với nhân viên phụ trách công lương",
+            "message": "Xin chào!, Tôi là Nguyễn Văn An - TIQN-0231" }
 }}
 ```
 
@@ -756,6 +801,8 @@ Thai sản, dưỡng sức, nghỉ hưởng lương khác, **nghỉ bù**: phòn
 
 ### `get_leave_balances` — GET (màn 11)
 
+*(từ 1.12.0, `get_config().history`)* `year` < năm của `from_month` → `VALIDATION` (`field: year`).
+
 | Tham số | |
 |---|---|
 | `year` | mặc định năm hiện tại |
@@ -779,6 +826,8 @@ số dư (hiện `note`).
 nghỉ bù. Bỏ ô đó khỏi màn 11.
 
 ### `get_leave_applications` — GET (màn 11 "Đơn của tôi")
+
+*(từ 1.12.0, `get_config().history`)* `year` < năm của `from_month` → `VALIDATION` (`field: year`). Danh sách, `counts` và `years_available` bỏ đơn kết thúc trước ngày 1 của `from_month`.
 
 | Tham số | |
 |---|---|
@@ -891,6 +940,8 @@ Lỗi: `READ_ONLY`, `NO_APPROVER`, `APPROVER_NO_USER`, `LEAVE_TYPE_NOT_ALLOWED`,
 
 ### `get_leave_application` — GET (màn 13, 13b)
 
+*(từ 1.12.0, `get_config().history`)* đơn kết thúc trước ngày 1 của `from_month` → `NOT_FOUND`.
+
 | Tham số | Bắt buộc |
 |---|---|
 | `id` | ✅ |
@@ -989,6 +1040,8 @@ dung tệp với `Content-Type` đúng. Hết hạn / sai chữ ký → HTTP 403
 
 ### `get_attendance_calendar` — GET (màn 14 "Chấm công & tăng ca")
 
+*(từ 1.12.0, `get_config().history`)* `month` cũ hơn `from_month` → `VALIDATION` (`field: month`).
+
 | Tham số | |
 |---|---|
 | `month` | `YYYY-MM` **tháng dương lịch**, mặc định tháng hiện tại |
@@ -1036,6 +1089,8 @@ dung tệp với `Content-Type` đúng. Hết hạn / sai chữ ký → HTTP 403
 Đã đi muộn mà có đơn nghỉ được duyệt cùng ngày thì **không** tính là đi muộn (theo quy định công ty).
 
 ### `get_attendance_day` — GET (màn 15)
+
+*(từ 1.12.0, `get_config().history`)* `date` trước ngày 1 của `from_month` → `VALIDATION` (`field: date`).
 
 | Tham số | Bắt buộc |
 |---|---|
@@ -1141,6 +1196,8 @@ Lỗi: `READ_ONLY`, `NO_APPROVER`, `APPROVER_NO_USER`, `OVERLAP` (đã có giả
 
 ### `get_attendance_requests` — GET
 
+*(từ 1.12.0, `get_config().history`)* chỉ trả giải trình có `to_date` từ ngày 1 của `from_month`.
+
 Danh sách giải trình của tôi (đích điều hướng của thông báo `EXPLANATION_*`, và mục "Giải trình đã gửi").
 
 | Tham số | |
@@ -1151,6 +1208,8 @@ Danh sách giải trình của tôi (đích điều hướng của thông báo `
 `items[]` là `Explanation` rút gọn: `id`, `reason_label`, `from_date`, `to_date`, `status`, `status_label`, `created_at`.
 
 ### `get_attendance_request` — GET
+
+*(từ 1.12.0, `get_config().history`)* giải trình kết thúc trước ngày 1 của `from_month` → `NOT_FOUND`.
 
 | Tham số | Bắt buộc |
 |---|---|
@@ -1182,6 +1241,8 @@ Danh sách giải trình của tôi (đích điều hướng của thông báo `
 Chỉ khi `PENDING`. Trả `Explanation` với `status: "CANCELLED"`.
 
 ### `get_attendance_summary` — GET (màn 17 "Tổng hợp")
+
+*(từ 1.12.0, `get_config().history`)* `period` cũ hơn `from_month` → `VALIDATION` (`field: period`).
 
 | Tham số | |
 |---|---|
@@ -1216,6 +1277,8 @@ Chỉ khi `PENDING`. Trả `Explanation` với `status: "CANCELLED"`.
   "Số liệu tạm tính, chốt công ngày 25/09; C&B có thể điều chỉnh tới 04/10. Số được trả lương xem ở phiếu lương."
 
 ### `get_overtime` — GET (màn 18 "Tăng ca") — ⚠ không còn dùng từ 1.1.3
+
+*(từ 1.12.0, `get_config().history`)* `period` cũ hơn `from_month` → `VALIDATION` (`field: period`).
 
 Mini App đã bỏ tab "Tăng ca": số tổng nằm ở `get_attendance_calendar.overtime_summary`, phiếu đăng ký nằm ở
 `get_attendance_day.overtime_registrations`. Endpoint vẫn chạy cho bản app cũ; `items[]` có thêm `id`
@@ -1265,6 +1328,8 @@ app cho tới khi phát hành lại. **Không có tải PDF** (bỏ nút "Tải 
 
 ### `get_payslip_periods` — GET (màn 19)
 
+*(từ 1.12.0, `get_config().history`)* `year` < năm của `from_month` → `VALIDATION` (`field: year`). `items` và `years_available` chỉ gồm kỳ từ `from_month`. `get_home.latest_payslip` cũng vậy.
+
 **Không trả số tiền** — số tiền chỉ có ở `get_payslip`, tải khi người dùng bấm "con mắt" của từng tháng.
 
 | Tham số | |
@@ -1313,6 +1378,8 @@ app cho tới khi phát hành lại. **Không có tải PDF** (bỏ nút "Tải 
 - Nhân viên chế độ chỉ xem vẫn thấy mọi phiếu của mình (gồm phiếu tháng cuối phát hành sau ngày nghỉ).
 
 ### `get_payslip` — **POST** (màn 20, và nút "con mắt" màn 19)
+
+*(từ 1.12.0, `get_config().history`)* kỳ cũ hơn `from_month` → `NOT_FOUND`, như phiếu chưa phát hành.
 
 POST vì lần mở đầu tiên được ghi lại (ngày xem đầu tiên). Các lần sau không ghi gì.
 
@@ -1448,12 +1515,24 @@ if (chat) openChat({ type: chat.type, id: chat.id });   // chat.type: "user" | "
 
 | `chat` | Nghĩa |
 |---|---|
-| `{ "type": "user", "id": "<ID by OA>", "name": "Chị Lan - Tiền lương" }` | Chat 1-1 với nhân viên tiền lương. `name` (có thể `null`) dùng làm nhãn nút / dòng phụ |
+| `{ "type": "user", "id": "<ID by OA>", "name": "Chị Lan - Tiền lương", "label": "…", "message": "…" }` | Chat 1-1 với nhân viên tiền lương. `name` (có thể `null`) dùng làm dòng phụ |
 | `{ "type": "oa", "id": "<OA ID>", "name": "TIQN" }` | Chưa cấu hình người — rơi về chat với OA (nếu ERP bật) |
 | `null` | Ẩn nút |
 
 - 🔴 `id` loại `user` là **ID by OA** (`getUserInfo().idByOA`), **không phải** `zalo_user_id` — app quản lý xe đã
   vấp: `zalo_user_id` trông hợp lệ nhưng `openChat` không mở gì. Server không bao giờ trả `zalo_user_id` ở đây.
+- *(từ 1.11.0)* `label` = chữ trên nút (phòng Nhân sự đặt, mặc định "Chat với nhân viên phụ trách công lương")
+  — thay cho chữ viết cứng trong app; `null` → giữ chữ của app. `message` = lời chào soạn sẵn, server đã điền
+  họ tên + mã NV (mặc định "Xin chào!, Tôi là Nguyễn Văn An - TIQN-0231"); `null` → không soạn sẵn.
+  ```js
+  if (chat) openChat({ type: chat.type, id: chat.id, ...(chat.message ? { message: chat.message } : {}) });
+  ```
+  Có ở cả loại `user` lẫn `oa`. Trang chủ (màn 06) có khối chat dùng `get_home.chat` (cùng dữ liệu, không có endpoint mới).
+- *(từ 1.12.0)* Lời chào có thêm thẻ `[Nhóm]` (nhóm của NV), ví dụ "Xin chào!, Tôi là Nguyễn Văn An - TIQN-0231 - Line 09".
+  NV không có nhóm: server bỏ luôn thẻ và dấu " - " đứng trước, ra "… - TIQN-0231". App không phải xử lý gì thêm.
+- *(từ 1.12.0)* Phòng Nhân sự **tạm ẩn** chat 1-1 C&B: OA là kênh chat duy nhất, nên hiện server chỉ trả
+  `type: "oa"` (hoặc `null`). App vẫn xử lý cả `"user"` như trên, vì ERP có thể bật lại mà không đổi contract.
+  `link_request_chat` (1.10.0) cũng vì thế luôn `null`.
 - Ẩn nút ở chế độ chỉ xem như trước.
 - `get_config().oa.chat_enabled` vẫn còn nhưng **đừng** dùng để quyết định nút chat nữa — dùng `chat`.
 
@@ -1470,7 +1549,7 @@ if (chat) openChat({ type: chat.type, id: chat.id });   // chat.type: "user" | "
 | 04 Chưa có hồ sơ | `login.result = NOT_FOUND`, `masked_phone`, `zalo_user_id`, `link_request`; "Yêu cầu tạo tài khoản" = `link_employee_request`; "Thử lại" = chạy lại 02 |
 | 05 Ngừng hoạt động | `login.result = EXPIRED/DISABLED`, `expired_on`; `contacts.company_phone` |
 | 06 Trang chủ | `get_home` |
-| 07 Mời quan tâm OA | `get_home.oa.show_invite` → `followOA` (SDK) → `set_oa_follow` |
+| 07 Mời quan tâm OA | `get_home.oa.show_invite` (thẻ) / `oa.force_follow` (popup nhắc, từ 1.11.0) → `followOA` (SDK) → `getUserInfo` → `set_oa_follow` (+ `id_by_oa`) |
 | 08 Thông báo | `get_notifications`, `mark_notifications_read` |
 | 09 Tài khoản | `me`, `get_config`, `set_oa_follow`, `logout`; "Cập nhật số điện thoại" = chạy lại 02 có `phone_token` |
 | (dev) Đăng nhập simulator | `dev_login` — chỉ build dev + `get_config.dev_login` (§2.6) |
@@ -1635,6 +1714,8 @@ Khai báo URL chính sách dữ liệu và điều khoản (`get_config().legal`
 | 12/10/2026 | 1.0-draft | Chốt công hết ngày 25, điều chỉnh tới mùng 4: `get_attendance_summary` thêm `adjust_until`, `cutoff_date` luôn có. Giữ tên máy chấm công. `login` luôn có key `expired_on`. |
 | 14/10/2026 | 1.1.1 | Trả lời `QUESTIONS_FOR_BACKEND.md` (Update 02): `designation` giờ là chức danh **tiếng Việt** (mục 17); `approver` của đơn nghỉ **có thể `null`** — đơn HR nhập tay (mục 16); `get_leave_form` thuộc **M3, chưa có** — Mini App chỉ hiện nút "Tạo đơn nghỉ" khi `get_config().features.leave_create = true` (§3.5), hiện đang `false` (mục 15). |
 | 14/10/2026 | 1.1.2 | Trả lời Update 02 (mục 18, 19): `employee.avatar_url` giờ là **URL ảnh nhân viên** (§ Employee), `null` khi không có ảnh công khai. Mục 19: simulator không có `access_token` → `login` luôn trả `ZALO_TOKEN_INVALID` "Thiếu mã truy cập Zalo" (không phải `NO_PHONE`); trên simulator dùng `dev_login`. `READ_ONLY` mặc định **30 ngày** (trước 60). Tài khoản mới không khớp nhân viên được dùng bị tự khoá phía ERP — không đổi kết quả trả về. Sửa: request song song sau khi phiên bị thu hồi giờ trả cùng `reason`/`result` (trước đó có thể ra `REVOKED`); `get_payslip_periods.upcoming` không hiện kỳ trước ngày vào làm. |
+| 19/11/2026 | 1.12.0 | **Chỉ thêm field — bản app đã phát hành vẫn chạy đúng.** (1) `get_config.history` (`months`, `from_month`): Mini App chỉ đọc được dữ liệu n tháng gần nhất (mặc định 12, tính cả tháng này) — chấm công, tăng ca, nghỉ phép, giải trình, phiếu lương; tháng / ngày / kỳ / năm cũ hơn → `VALIDATION` (app cũ hiện `message`), chi tiết bản ghi cũ → `NOT_FOUND`, danh sách bỏ bản ghi cũ. ERP không bị giới hạn. (2) `oa.intro`: lời giới thiệu OA (giữ xuống dòng) cho khối OA / thẻ mời / popup. (3) Lời chào `chat.message` có thêm `[Nhóm]`; NV không có nhóm thì bỏ cả " - ". (4) Chat 1-1 C&B tạm ẩn: hiện chỉ trả `chat.type = "oa"`, `link_request_chat` luôn `null`; app vẫn giữ xử lý `"user"`. (5) App kiểm tra `getUserInfo().followedOA` mỗi lần mở và báo `set_oa_follow` `FOLLOWED` / `UNFOLLOWED` khi khác ERP (không có endpoint mới). |
+| 19/11/2026 | 1.11.0 | **Chỉ thêm field / tham số tuỳ chọn — bản app đã phát hành vẫn chạy đúng.** (1) `chat` (`me`, `get_home`) thêm `label` (chữ trên nút, phòng Nhân sự đặt) + `message` (lời chào soạn sẵn có họ tên, mã NV) → `openChat({…, message})`; trang chủ thêm khối chat. (2) `oa` (`login`, `me`, `get_home`, `set_oa_follow`) thêm `oa_id`, `force_follow` + `force_follow_delay_seconds` (popup **nhắc** quan tâm OA mỗi lần mở app, có "Để sau", không khoá app; Review Mode luôn `false`), `need_id_by_oa`. (3) `set_oa_follow` nhận thêm `id_by_oa`. (4) Nhắc: chưa tài khoản nào có ID by OA vì app chưa gọi `set_id_by_oa` — gọi `getUserInfo()` lại sau `followOA()`. Giờ tăng ca final từng ngày đã có sẵn: `get_attendance_calendar.days[].overtime_hours`, `get_attendance_day.overtime_hours` (không đổi). |
 | 31/10/2026 | 1.10.0 | **Chỉ thêm field.** `link_employee_request` trả thêm `link_request_chat` (ChatTarget) + `approval_url` để app mở chat Zalo với C&B kèm link duyệt (§ `link_employee_request`). `null` = tính năng tắt (mặc định). Không đưa vào `get_config` như Mini App đề xuất vì endpoint đó công khai. |
 | 28/10/2026 | 1.9.0 | **Chỉ thêm field, bản app hiện tại không phải sửa.** (1) `get_config.payslip.show_zero_lines` — trạng thái ban đầu của nút "Ẩn khoản 0đ" (§6); server vẫn trả đủ dòng. (2) `content_version` ở `get_payslip`, `get_payslip_periods.items[]`, `get_home.latest_payslip` — thêm vào khoá cache phiếu (§10 "Cache"): đổi khi phòng Nhân sự sửa tên khoản của phiếu đã phát hành. (3) Danh sách dòng `rows` / `sections` **có thể khác giữa các kỳ** (thêm / bớt / đổi tên khoản, đổi chữ công thức — Payslip Structure); mỗi phiếu giữ đúng dòng lúc phát hành; không giả định mã / số dòng cố định. Mini App cập nhật (1) và (2) ở bản sau. |
 | 27/10/2026 | 1.8.0 | `get_payslip` thêm **`note`** (string \| `null`) — ghi chú phòng Nhân sự ghi cho cả phiếu. Có thì hiện khung "Ghi chú" cuối phiếu, giữ xuống dòng. Chỉ thêm field, bản app cũ vẫn đúng. Đã chạy trên server từ 27/10. |

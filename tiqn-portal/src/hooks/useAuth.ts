@@ -122,11 +122,15 @@ export function useAuth() {
         setOa(data.oa);
         setChat(data.chat ?? null);
         setLoginMethod(data.login_method);
-        // Fetch Zalo avatar as fallback (fire and forget)
+        // Fetch Zalo avatar + send idByOA if needed (fire and forget)
         try {
           const userInfo = await getUserInfo({});
           const avatar = userInfo.userInfo?.avatar;
           if (avatar) setZaloAvatar(avatar);
+          const idByOA = (userInfo.userInfo as any)?.idByOA as string | undefined;
+          if (idByOA) {
+            api.setIdByOA(idByOA).catch(() => {});
+          }
         } catch { /* ignore — SDK unavailable */ }
         setAuthLoading(false);
         navigate("/home", { replace: true });

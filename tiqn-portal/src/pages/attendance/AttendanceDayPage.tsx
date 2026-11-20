@@ -152,7 +152,7 @@ const AttendanceDayPage: React.FC = () => {
             </Text>
           </Box>
           <Box className="flex items-center justify-between">
-            <Text size="small" className="text-gray-500">Tăng ca thực tế</Text>
+            <Text size="small" className="text-gray-500">Tăng ca thực tính</Text>
             <Text size="small" className={`font-semibold ${data.overtime_hours > 0 ? "text-cyan-600" : "text-gray-900"}`}>
               {data.overtime_hours > 0 ? formatDecimal(data.overtime_hours) : "0"} giờ
             </Text>

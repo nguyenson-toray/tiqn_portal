@@ -78,11 +78,11 @@ export function linkEmployeeRequest(params: {
   });
 }
 
-export function setOAFollow(action: OAFollowAction) {
+export function setOAFollow(action: OAFollowAction, id_by_oa?: string) {
   return request<OAFollowData>({
     method: "POST",
     endpoint: "set_oa_follow",
-    params: { action },
+    params: { action, ...(id_by_oa ? { id_by_oa } : {}) },
   });
 }
 

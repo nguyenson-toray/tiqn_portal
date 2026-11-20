@@ -1,12 +1,14 @@
-import React, { useEffect, useCallback, useState } from "react";
+import React, { useEffect, useCallback, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { Page, Box, Text } from "zmp-ui";
+import { Page, Box, Text, Sheet, Button, Icon } from "zmp-ui";
+import { openChat, followOA, getUserInfo, openWebview } from "zmp-sdk/apis";
 
 import * as api from "@/api/endpoints";
 import { useAsyncAction } from "@/hooks/useApi";
+import { useAuth } from "@/hooks/useAuth";
 import { useConfigRefresh } from "@/hooks/useConfigRefresh";
-import { configAtom, employeeAtom, accessAtom, chatAtom, isReadOnlyAtom } from "@/store/auth";
+import { configAtom, employeeAtom, accessAtom, chatAtom, oaAtom, maskedPhoneAtom, isReadOnlyAtom } from "@/store/auth";
 import { homeDataAtom, allDataAtoms, viewedPayslipPeriodsAtom } from "@/store/data";
 import { clearPayslipCache } from "@/utils/payslipCache";
 import { formatDate, formatDateShort, formatTime, formatDecimal } from "@/utils/format";
@@ -33,12 +35,28 @@ const HomePage: React.FC = () => {
   const access = useAtomValue(accessAtom);
   const isReadOnly = useAtomValue(isReadOnlyAtom);
   const setChat = useSetAtom(chatAtom);
+  const [oa, setOa] = useAtom(oaAtom);
+  const maskedPhone = useAtomValue(maskedPhoneAtom);
+  const { clearSession } = useAuth();
   const features = config?.features;
   const store = useStore();
+  const needIdByOaSentRef = useRef(false);
 
   useConfigRefresh();
 
   const [home, setHome] = useAtom(homeDataAtom);
+  const [followingOA, setFollowingOA] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const emp = home?.employee || employee;
+
+  const handleLogout = useCallback(async () => {
+    setLoggingOut(true);
+    try { await api.logout(); } catch { /* ignore */ }
+    await clearSession();
+    navigate("/login", { replace: true });
+  }, [clearSession, navigate]);
   const { run: fetchHome, loading, error } = useAsyncAction(api.getHome);
 
   const loadData = useCallback(async () => {
@@ -46,15 +64,88 @@ const HomePage: React.FC = () => {
     if (data) {
       setHome(data);
       setChat(data.chat ?? null);
+      setOa(data.oa);
+      // Once per app open: sync OA follow status + id_by_oa
+      if (!needIdByOaSentRef.current) {
+        needIdByOaSentRef.current = true;
+        try {
+          const userInfo = await getUserInfo({});
+          const ui = userInfo.userInfo as any;
+          const followedOA = ui?.followedOA as boolean | undefined;
+          const idByOA = ui?.idByOA as string | undefined;
+
+          // Send idByOA if backend needs it
+          if (idByOA && data.oa?.need_id_by_oa) {
+            api.setIdByOA(idByOA).catch(() => {});
+          }
+
+          // Sync OA follow status: compare followedOA with oa.followed
+          if (followedOA != null && followedOA !== data.oa?.followed) {
+            try {
+              const oaResult = followedOA
+                ? await api.setOAFollow("FOLLOWED", idByOA || undefined)
+                : await api.setOAFollow("UNFOLLOWED");
+              setOa(oaResult);
+            } catch { /* ignore */ }
+          }
+        } catch { /* ignore */ }
+      }
     }
-  }, [fetchHome, setHome, setChat]);
+  }, [fetchHome, setHome, setChat, setOa]);
 
   useEffect(() => {
     if (!home) loadData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleFollowOA = useCallback(async () => {
+    const oaId = oa?.oa_id || config?.oa.oa_id;
+    if (!oaId) return;
+    setFollowingOA(true);
+    try {
+      // followOA resolves AFTER user taps "Quan tâm" on Zalo native dialog
+      await followOA({ id: oaId });
+
+      // Try getUserInfo up to 3 times to get idByOA (Zalo may need time to propagate)
+      let idByOA: string | undefined;
+      const delays = [0, 2000, 3000];
+      for (let i = 0; i < delays.length; i++) {
+        if (delays[i]) await new Promise((r) => setTimeout(r, delays[i]));
+        try {
+          const ui = (await getUserInfo({})).userInfo as any;
+          idByOA = ui?.idByOA as string | undefined;
+          if (idByOA) break;
+        } catch { /* ignore */ }
+      }
+
+      // Send follow status + idByOA (if available) to backend
+      try {
+        const oaResult = await api.setOAFollow("FOLLOWED", idByOA || undefined);
+        setOa(oaResult);
+      } catch { /* ignore */ }
+
+      // Send idByOA separately if backend needs it
+      if (idByOA) {
+        api.setIdByOA(idByOA).catch(() => {});
+      }
+    } catch { /* user cancelled (code -201) */ }
+    setFollowingOA(false);
+  }, [oa, config, setOa]);
+
+  const homeChat = home?.chat;
+  const handleChat = useCallback(() => {
+    if (!homeChat || isReadOnly) return;
+    const msg = homeChat.message || undefined;
+    openChat({ type: homeChat.type, id: homeChat.id, ...(msg ? { message: msg } : {}) });
+  }, [homeChat, isReadOnly]);
+
   const [refreshing, setRefreshing] = useState(false);
+  const lastRefreshRef = useRef(0);
+  const REFRESH_COOLDOWN = 10_000; // 10 seconds
+
   const handleRefreshAll = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < REFRESH_COOLDOWN) return;
+    lastRefreshRef.current = now;
     setRefreshing(true);
     try {
       // Clear all in-memory data caches
@@ -91,80 +182,209 @@ const HomePage: React.FC = () => {
     );
   }
 
-  const emp = home?.employee || employee;
   const acc = home?.access || access;
   const today = home?.today;
   const unread = home?.notifications?.unread || 0;
   const latestNotif = home?.notifications?.latest;
-  const oa = home?.oa;
-  const showOABanner = oa?.show_invite && !isReadOnly;
-
   return (
     <Page className="flex flex-col bg-gray-50" hideScrollbar={false}>
-      <AppHeader title="Trang chủ" />
+      {/* Header with employee info */}
+      <AppHeader title="">
+        {emp ? (
+          <Box className="flex items-center gap-3">
+            <button type="button" onClick={() => setShowAccount(!showAccount)} className="flex-shrink-0">
+              <EmployeeAvatar initials={emp.initials} avatarUrl={emp.avatar_url} size={44} />
+            </button>
+            <Box className="flex-1 min-w-0">
+              <Text className="font-bold text-white truncate leading-tight">
+                {emp.full_name}
+              </Text>
+              <Text size="xxSmall" className="text-white/70 truncate leading-tight mt-0.5">
+                {emp.employee_id}{emp.section ? ` · ${emp.section}` : ""}{emp.group ? ` · ${emp.group}` : ""}
+              </Text>
+            </Box>
+            <button
+              type="button"
+              className="p-2 rounded-full hover:bg-white/10 active:bg-white/20"
+              onClick={() => setShowAccount(!showAccount)}
+              aria-label="Tài khoản"
+            >
+              <Icon icon="zi-user-circle" size={24} className="text-white" />
+            </button>
+          </Box>
+        ) : (
+          <Text className="font-semibold text-lg text-white">Trang chủ</Text>
+        )}
+      </AppHeader>
+
+      {/* Account bottom sheet */}
+      <Sheet
+        visible={showAccount}
+        onClose={() => setShowAccount(false)}
+        autoHeight
+        title="Tài khoản"
+      >
+        {emp && (
+          <Box className="px-4 pb-6 space-y-3">
+            {/* Employee header */}
+            <Box className="flex items-center gap-3 pb-2">
+              <EmployeeAvatar initials={emp.initials} avatarUrl={emp.avatar_url} size={48} />
+              <Box className="flex-1 min-w-0">
+                <Text className="font-bold text-gray-900 truncate">{emp.full_name}</Text>
+                <Text size="xSmall" className="text-gray-500 truncate">
+                  {emp.employee_id}{emp.section ? ` · ${emp.section}` : ""}
+                </Text>
+              </Box>
+            </Box>
+
+            {/* Info rows */}
+            <Box className="bg-gray-50 rounded-xl divide-y divide-gray-100">
+              <Box className="flex items-center justify-between px-4 py-2.5">
+                <Text size="xSmall" className="text-gray-500">Chức vụ</Text>
+                <Text size="xSmall" className="font-medium text-gray-900 text-right">
+                  {emp.designation}{emp.group ? ` · ${emp.group}` : ""}
+                </Text>
+              </Box>
+              <Box className="flex items-center justify-between px-4 py-2.5">
+                <Text size="xSmall" className="text-gray-500">SĐT đăng nhập</Text>
+                <Text size="xSmall" className="font-medium text-gray-900">{maskedPhone || ""}</Text>
+              </Box>
+              {emp.date_of_joining && (
+                <Box className="flex items-center justify-between px-4 py-2.5">
+                  <Text size="xSmall" className="text-gray-500">Ngày vào làm</Text>
+                  <Text size="xSmall" className="font-medium text-gray-900">{formatDate(emp.date_of_joining)}</Text>
+                </Box>
+              )}
+            </Box>
+
+            {/* Legal links */}
+            <Box className="flex gap-3 justify-center">
+              {config?.legal.privacy_policy_url && (
+                <button
+                  type="button"
+                  className="text-xs text-[#006AF5] underline"
+                  onClick={() => openWebview({ url: config.legal.privacy_policy_url })}
+                >
+                  Chính sách dữ liệu
+                </button>
+              )}
+              {config?.legal.terms_url && (
+                <button
+                  type="button"
+                  className="text-xs text-[#006AF5] underline"
+                  onClick={() => openWebview({ url: config.legal.terms_url })}
+                >
+                  Điều khoản
+                </button>
+              )}
+            </Box>
+
+            {/* Logout */}
+            <Button
+              fullWidth
+              variant="secondary"
+              loading={loggingOut}
+              disabled={loggingOut}
+              onClick={handleLogout}
+            >
+              Đăng xuất
+            </Button>
+
+            <Text size="xxSmall" className="text-gray-400 text-center">
+              Phiên bản 1.0.0 · Nhóm IT - TIQN
+            </Text>
+          </Box>
+        )}
+      </Sheet>
 
       {isReadOnly && <ReadOnlyBanner />}
 
       <div className="flex-1 overflow-auto px-4 pt-3 pb-20 space-y-3">
-        {/* Employee Card */}
-        {emp && (
-          <Box className="bg-white rounded-xl p-4 shadow-sm">
-            <Box className="flex items-center gap-3">
-              <EmployeeAvatar
-                initials={emp.initials}
-                avatarUrl={emp.avatar_url}
-                size={56}
-              />
-              <Box className="flex-1 min-w-0">
-                <Text className="font-bold text-lg text-gray-900 truncate leading-tight">
-                  {emp.full_name}
-                </Text>
-                <Text size="xSmall" className="text-gray-500 truncate leading-tight mt-0.5">
-                  {emp.employee_id}
-                </Text>
-              </Box>
-            </Box>
-            <Box className="mt-3 space-y-1">
-              {emp.section && (
-                <Text size="xSmall" className="text-gray-500">
-                  {emp.section}{emp.group ? ` · ${emp.group}` : ""}
-                </Text>
-              )}
-              {!emp.section && emp.group && (
-                <Text size="xSmall" className="text-gray-500">{emp.group}</Text>
-              )}
-              {emp.date_of_joining && (
-                <Text size="xSmall" className="text-gray-400">
-                  Ngày vào làm: {formatDate(emp.date_of_joining)}
-                </Text>
-              )}
-            </Box>
-            {acc?.mode === "READ_ONLY" && acc.read_only_until && (
-              <Box className="mt-2 bg-amber-50 rounded-lg px-3 py-1.5">
-                <Text size="xxSmall" className="text-amber-700">
-                  Chỉ xem đến {formatDate(acc.read_only_until)}
-                </Text>
-              </Box>
-            )}
+        {/* Read-only notice */}
+        {acc?.mode === "READ_ONLY" && acc.read_only_until && (
+          <Box className="bg-amber-50 rounded-xl px-4 py-2.5">
+            <Text size="xxSmall" className="text-amber-700">
+              Chỉ xem đến {formatDate(acc.read_only_until)}
+            </Text>
           </Box>
         )}
 
-        {/* OA Banner */}
-        {showOABanner && (
+        {/* HR Notice */}
+        {home?.notice && (
+          <Box className="bg-amber-50 border-l-4 border-amber-400 rounded-xl px-4 py-3 flex gap-3">
+            <Text className="text-amber-600 text-base leading-none mt-0.5">⚠</Text>
+            <Text size="small" className="text-amber-800 whitespace-pre-line flex-1">
+              {home.notice}
+            </Text>
+          </Box>
+        )}
+
+        {/* OA Status + Follow */}
+        <Box className="bg-white rounded-xl p-4 shadow-sm">
+          <Box className="flex items-center justify-between">
+            <Box className="flex items-center gap-2">
+              <Icon icon="zi-chat" size={18} className={oa?.followed ? "text-green-600" : "text-gray-400"} />
+              <Text size="small" className={oa?.followed ? "text-green-600 font-medium" : "text-gray-500"}>
+                {oa?.followed ? "Đã quan tâm OA" : "Chưa quan tâm OA"}
+              </Text>
+            </Box>
+            {!oa?.followed && (
+              <Button
+                size="small"
+                variant="secondary"
+                loading={followingOA}
+                disabled={followingOA}
+                onClick={handleFollowOA}
+              >
+                Quan tâm OA
+              </Button>
+            )}
+          </Box>
+          {!oa?.followed && oa?.intro && (
+            <Text size="xxSmall" className="text-gray-400 mt-2 whitespace-pre-line">
+              {oa.intro}
+            </Text>
+          )}
+        </Box>
+
+        {/* Chat with C&B */}
+        {homeChat && !isReadOnly && (
           <button
             type="button"
-            className="w-full text-left"
-            onClick={() => navigate("/oa-invite")}
+            className="w-full text-left bg-white rounded-xl p-4 shadow-sm active:bg-gray-50"
+            onClick={handleChat}
           >
-            <Box className="bg-blue-50 rounded-xl px-4 py-3 flex items-center gap-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-              <Text size="xSmall" className="text-blue-700 flex-1">
-                Quan tâm OA để nhận tin
-              </Text>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            <Box className="flex items-center gap-3">
+              <Box className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <Icon icon="zi-chat" size={20} className="text-[#006AF5]" />
+              </Box>
+              <Box className="flex-1 min-w-0">
+                <Text size="small" className="font-medium text-[#006AF5]">
+                  {homeChat.label || "Chat với nhân viên phụ trách công, lương"}
+                </Text>
+                {homeChat.name && (
+                  <Text size="xxSmall" className="text-gray-400 truncate">
+                    {homeChat.name}
+                  </Text>
+                )}
+              </Box>
+              <Icon icon="zi-chevron-right" size={16} className="text-gray-400" />
             </Box>
           </button>
         )}
+
+        {/* Refresh all data */}
+        <Button
+          fullWidth
+          variant="tertiary"
+          size="small"
+          loading={refreshing}
+          disabled={refreshing}
+          prefixIcon={<Icon icon="zi-retry" size={16} />}
+          onClick={handleRefreshAll}
+        >
+          {refreshing ? "Đang làm mới..." : "Làm mới dữ liệu"}
+        </Button>
 
         {/* Latest Payslip Card */}
         {features?.payslip && (
@@ -186,7 +406,7 @@ const HomePage: React.FC = () => {
           >
             <Box className="flex items-center justify-between">
               <Text size="xSmall" className="text-gray-500 font-medium">Phiếu lương</Text>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+              <Icon icon="zi-chevron-right" size={16} className="text-gray-400" />
             </Box>
             {home?.latest_payslip ? (
               <Box className="mt-1">
@@ -317,25 +537,6 @@ const HomePage: React.FC = () => {
           </button>
         )}
 
-        {/* Refresh all data */}
-        <button
-          type="button"
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white shadow-sm active:bg-gray-50 disabled:opacity-50"
-          onClick={handleRefreshAll}
-          disabled={refreshing}
-        >
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round"
-            className={refreshing ? "animate-spin" : ""}
-          >
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
-          <Text size="xSmall" className="text-gray-500 font-medium">
-            {refreshing ? "Đang làm mới..." : "Làm mới dữ liệu"}
-          </Text>
-        </button>
       </div>
 
       <BottomNav />

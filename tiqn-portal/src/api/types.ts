@@ -102,13 +102,15 @@ export interface AppConfig {
   company: { name: string; short_name: string; logo_url: string | null };
   contacts: { hr_hotline: string; company_phone: string };
   legal: { privacy_policy_url: string; terms_url: string; version: string };
-  oa: { oa_id: string; chat_enabled: boolean };
+  oa: { oa_id: string; oa_name?: string; chat_enabled: boolean };
   dev_login: boolean;
   uploads: { max_files: number; max_size_mb: number; accept: string[] };
   read_only_days: number;
   features: Features;
   /** @since 1.9.0 */
   payslip?: { show_zero_lines: boolean };
+  /** @since 1.12.0 — data history limit */
+  history?: { months: number | null; from_month: string | null };
 }
 
 export interface Features {
@@ -160,7 +162,7 @@ export interface LoginData {
   zalo_user_id: string;
   employee: Employee | null;
   access: Access | null;
-  oa: { followed: boolean; show_invite: boolean } | null;
+  oa: OAFollowData | null;
   expired_on: string | null;
   message: string | null;
   link_request: LinkRequestInfo | null;
@@ -172,6 +174,10 @@ export interface ChatTarget {
   type: "user" | "oa";
   id: string;
   name: string | null;
+  /** @since 1.11.0 — button label set by HR */
+  label?: string | null;
+  /** @since 1.11.0 — pre-filled greeting with employee name + ID */
+  message?: string | null;
 }
 
 // --- me (§6) ---
@@ -183,7 +189,7 @@ export interface MeData {
   zalo_user_id: string;
   login_method: "ZALO_PHONE" | "STORED_PHONE" | "DEV";
   session_expires_on: string;
-  oa: { followed: boolean; show_invite: boolean };
+  oa: OAFollowData;
   chat: ChatTarget | null;
 }
 
@@ -194,6 +200,16 @@ export type OAFollowAction = "FOLLOWED" | "DISMISSED" | "UNFOLLOWED";
 export interface OAFollowData {
   followed: boolean;
   show_invite: boolean;
+  /** @since 1.11.0 */
+  oa_id?: string | null;
+  /** @since 1.11.0 — show force-follow popup on app open */
+  force_follow?: boolean;
+  /** @since 1.11.0 — delay in seconds before showing popup */
+  force_follow_delay_seconds?: number;
+  /** @since 1.11.0 — ERP needs id_by_oa → call getUserInfo + set_id_by_oa */
+  need_id_by_oa?: boolean;
+  /** @since 1.12.0 — OA intro text from HR, with \n line breaks */
+  intro?: string | null;
 }
 
 // --- get_home (§7) ---
@@ -212,6 +228,7 @@ export interface TodayInfo {
 export interface HomeData {
   employee: Employee;
   access: Access;
+  notice?: string | null;
   today: TodayInfo | null;
   annual_leave: { year: number; remaining: number; available: number } | null;
   attendance: {
@@ -228,7 +245,7 @@ export interface HomeData {
     unread: number;
     latest: NotificationItem | null;
   } | null;
-  oa: { followed: boolean; show_invite: boolean };
+  oa: OAFollowData;
   chat: ChatTarget | null;
 }
 

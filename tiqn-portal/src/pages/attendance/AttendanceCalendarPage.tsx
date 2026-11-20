@@ -5,12 +5,12 @@ import { Page, Box, Text, Spinner, Icon } from "zmp-ui";
 import * as api from "@/api/endpoints";
 import type { AttendanceCalendarData, AttendanceDisplay, CalendarDay } from "@/api/types";
 import { useAsyncAction } from "@/hooks/useApi";
-import { formatDateShort, formatTime } from "@/utils/format";
+import { formatDateShort, formatTime, formatDecimal } from "@/utils/format";
 import BottomNav from "@/components/BottomNav";
 import ReadOnlyBanner from "@/components/ReadOnlyBanner";
 import ErrorState from "@/components/ErrorState";
 import { useAtomValue } from "jotai";
-import { isReadOnlyAtom } from "@/store/auth";
+import { configAtom, isReadOnlyAtom } from "@/store/auth";
 
 const TAB_ITEMS = [
   { key: "calendar", label: "Lịch tháng", path: "/attendance" },
@@ -80,7 +80,9 @@ function buildCalendarGrid(days: CalendarDay[], monthStr: string): (CalendarDay 
 
 const AttendanceCalendarPage: React.FC = () => {
   const navigate = useNavigate();
+  const config = useAtomValue(configAtom);
   const isReadOnly = useAtomValue(isReadOnlyAtom);
+  const fromMonth = config?.history?.from_month;
 
   const [month, setMonth] = useState(getCurrentMonth);
   const [data, setData] = useState<AttendanceCalendarData | null>(null);
@@ -106,7 +108,8 @@ const AttendanceCalendarPage: React.FC = () => {
     };
   }, [month, loadData]);
 
-  const handlePrevMonth = () => setMonth((m) => shiftMonth(m, -1));
+  const canGoPrev = !fromMonth || month > fromMonth;
+  const handlePrevMonth = () => { if (canGoPrev) setMonth((m) => shiftMonth(m, -1)); };
   const handleNextMonth = () => setMonth((m) => shiftMonth(m, 1));
 
   const weeks = useMemo(() => {
@@ -137,6 +140,7 @@ const AttendanceCalendarPage: React.FC = () => {
   }
 
   const summary = data?.summary;
+  const overtimeSummary = data?.overtime_summary;
   const today = data?.today;
 
   return (
@@ -173,8 +177,8 @@ const AttendanceCalendarPage: React.FC = () => {
       <Box className="flex-1 overflow-auto px-4 pt-3 pb-24 space-y-3">
         {/* Month Selector */}
         <Box className="flex items-center justify-center gap-4">
-          <button type="button" className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50 active:bg-blue-100" aria-label="Tháng trước" onClick={handlePrevMonth}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#006AF5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
+          <button type="button" className={`w-8 h-8 flex items-center justify-center rounded-full ${canGoPrev ? "bg-blue-50 active:bg-blue-100" : "bg-gray-100 opacity-40"}`} aria-label="Tháng trước" onClick={handlePrevMonth} disabled={!canGoPrev}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={canGoPrev ? "#006AF5" : "#9ca3af"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
           <Text className="font-semibold text-gray-900 min-w-[120px] text-center">
             Tháng {String(displayMonth).padStart(2, "0")}/{displayYear}
@@ -222,6 +226,28 @@ const AttendanceCalendarPage: React.FC = () => {
           </Box>
         )}
 
+        {/* Overtime Summary */}
+        {overtimeSummary && (
+          <Box className="flex justify-around bg-white rounded-xl px-3 py-2 shadow-sm">
+            <Box className="text-center">
+              <Text size="small" className="font-semibold text-cyan-600">
+                {formatDecimal(overtimeSummary.actual_hours)}
+              </Text>
+              <Text size="xxSmall" className="text-gray-500">
+                TC thực tính (giờ)
+              </Text>
+            </Box>
+            <Box className="text-center">
+              <Text size="small" className="font-semibold text-green-600">
+                {formatDecimal(overtimeSummary.approved_hours)}
+              </Text>
+              <Text size="xxSmall" className="text-gray-500">
+                TC đã duyệt (giờ)
+              </Text>
+            </Box>
+          </Box>
+        )}
+
         {/* Calendar Grid */}
         <Box className="bg-white rounded-xl p-3 shadow-sm">
           {/* Weekday headers */}
@@ -258,6 +284,9 @@ const AttendanceCalendarPage: React.FC = () => {
                     )}
                     {day.leave_abbr && (
                       <span className="text-[8px] leading-none">{day.leave_abbr}</span>
+                    )}
+                    {day.overtime_hours != null && day.overtime_hours > 0 && (
+                      <span className="text-[7px] text-cyan-600 leading-none font-medium">TC</span>
                     )}
                     {day.has_explanation && (
                       <span className="text-[6px] text-blue-500 leading-none">GT</span>

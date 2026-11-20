@@ -24,7 +24,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, showBack, rightContent, ch
       style={{ paddingTop: "var(--zaui-safe-area-inset-top, 0px)" }}
     >
       {/* Row 1: Logo + app name — same level as Zalo native controls */}
-      <Box className="px-4 pt-1.5 pb-1 flex items-center gap-2">
+      <Box className="px-4 pt-4 pb-1 pr-24 flex items-center gap-2">
         <img src={logo} alt="TORAY" className="h-4 brightness-0 invert" />
         <Text size="large" className="text-white font-semibold tracking-wide">
           Cổng thông tin nhân viên

@@ -101,11 +101,7 @@ const IntroPage: React.FC = () => {
             api.setIdByOA(idByOA).catch(() => { });
           }
         } catch { /* ignore — scope.userInfo not granted or SDK unavailable */ }
-        if (data.result === "ACTIVE" && data.oa?.show_invite) {
-          navigate("/oa-invite", { replace: true });
-        } else {
-          navigate("/home", { replace: true });
-        }
+        navigate("/home", { replace: true });
         break;
       }
       case "NO_PHONE":

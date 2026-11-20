@@ -15,7 +15,6 @@ import NotFoundPage from "@/pages/login/NotFoundPage";
 import DeactivatedPage from "@/pages/login/DeactivatedPage";
 import UpdateRequiredPage from "@/pages/login/UpdateRequiredPage";
 import HomePage from "@/pages/home/HomePage";
-import OAInvitePage from "@/pages/home/OAInvitePage";
 import NotificationsPage from "@/pages/notifications/NotificationsPage";
 import AccountPage from "@/pages/account/AccountPage";
 import LeavePage from "@/pages/leave/LeavePage";
@@ -46,7 +45,6 @@ const Layout = () => {
 
             {/* Main screens */}
             <Route path="/home" element={<HomePage />} />
-            <Route path="/oa-invite" element={<OAInvitePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/account" element={<AccountPage />} />
 

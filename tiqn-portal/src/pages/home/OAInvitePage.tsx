@@ -1,15 +1,16 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Page, Box, Text, Button, Icon } from "zmp-ui";
-import { followOA } from "zmp-sdk/apis";
+import { followOA, getUserInfo } from "zmp-sdk/apis";
 
 import * as api from "@/api/endpoints";
-import { configAtom } from "@/store/auth";
+import { configAtom, oaAtom } from "@/store/auth";
 
 const OAInvitePage: React.FC = () => {
   const navigate = useNavigate();
   const config = useAtomValue(configAtom);
+  const setOa = useSetAtom(oaAtom);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +45,15 @@ const OAInvitePage: React.FC = () => {
     setError(null);
     try {
       await followOA({ id: oaId });
+      // Get idByOA right after followOA and send with FOLLOWED
+      let idByOA: string | undefined;
       try {
-        await api.setOAFollow("FOLLOWED");
+        const userInfo = await getUserInfo({});
+        idByOA = (userInfo.userInfo as any)?.idByOA as string | undefined;
+      } catch { /* ignore */ }
+      try {
+        const oaResult = await api.setOAFollow("FOLLOWED", idByOA || undefined);
+        setOa(oaResult);
       } catch {
         // Ignore server sync error
       }

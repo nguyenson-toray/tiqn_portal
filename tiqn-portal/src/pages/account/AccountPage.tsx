@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Page, Box, Text, Button, Icon } from "zmp-ui";
-import { followOA, openWebview, openChat } from "zmp-sdk/apis";
+import { followOA, openWebview, openChat, getUserInfo } from "zmp-sdk/apis";
 
 import * as api from "@/api/endpoints";
 import {
@@ -25,6 +25,7 @@ const AccountPage: React.FC = () => {
   const config = useAtomValue(configAtom);
   const employee = useAtomValue(employeeAtom);
   const oa = useAtomValue(oaAtom);
+  const setOa = useSetAtom(oaAtom);
   const chat = useAtomValue(chatAtom);
   const maskedPhone = useAtomValue(maskedPhoneAtom);
   const isReadOnly = useAtomValue(isReadOnlyAtom);
@@ -45,12 +46,20 @@ const AccountPage: React.FC = () => {
   };
 
   const handleFollowOA = async () => {
-    if (!config?.oa.oa_id) return;
+    const oaId = oa.oa_id || config?.oa.oa_id;
+    if (!oaId) return;
     setFollowingOA(true);
     try {
-      await followOA({ id: config.oa.oa_id });
+      await followOA({ id: oaId });
+      // Get idByOA right after followOA and send with FOLLOWED
+      let idByOA: string | undefined;
       try {
-        await api.setOAFollow("FOLLOWED");
+        const userInfo = await getUserInfo({});
+        idByOA = (userInfo.userInfo as any)?.idByOA as string | undefined;
+      } catch { /* ignore */ }
+      try {
+        const oaResult = await api.setOAFollow("FOLLOWED", idByOA || undefined);
+        setOa(oaResult);
       } catch {
         // Ignore sync error
       }
@@ -62,7 +71,8 @@ const AccountPage: React.FC = () => {
 
   const handleContactChat = () => {
     if (!chat || isReadOnly) return;
-    openChat({ type: chat.type, id: chat.id });
+    const msg = chat.message || undefined;
+    openChat({ type: chat.type, id: chat.id, ...(msg ? { message: msg } : {}) });
   };
 
   return (

@@ -87,11 +87,7 @@ const NoPhonePage: React.FC = () => {
       case "ACTIVE":
       case "READ_ONLY":
         await saveSession(data.token!, data.employee, data.access, data.masked_phone, data.oa);
-        if (data.result === "ACTIVE" && data.oa?.show_invite) {
-          navigate("/oa-invite", { replace: true });
-        } else {
-          navigate("/home", { replace: true });
-        }
+        navigate("/home", { replace: true });
         break;
       case "NO_PHONE":
         setError("Tài khoản vẫn chưa có số điện thoại. Vui lòng liên hệ phòng Nhân sự.");
