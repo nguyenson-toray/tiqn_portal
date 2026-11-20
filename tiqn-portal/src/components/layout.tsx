@@ -7,6 +7,7 @@ import {
 } from "zmp-ui";
 import { Routes } from "react-router-dom";
 
+import ForceFollowOA from "@/components/ForceFollowOA";
 import SplashPage from "@/pages/SplashPage";
 import IntroPage from "@/pages/login/IntroPage";
 import PhoneDeniedPage from "@/pages/login/PhoneDeniedPage";
@@ -30,6 +31,7 @@ const Layout = () => {
   return (
     <App theme="light">
       <SnackbarProvider>
+        <ForceFollowOA />
         <ZMPRouter>
           <Routes>
             {/* Splash / Init */}
